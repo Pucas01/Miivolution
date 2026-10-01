@@ -34,11 +34,11 @@ inline void log(const char* fmt, ...) {
     log(Level, "%s", buffer);
 }
 
-#define LOG_TRACE(...) ::RevoMii::log(::RevoMii::LogLevel::Trace, __VA_ARGS__)
-#define LOG_DEBUG(...) ::RevoMii::log(::RevoMii::LogLevel::Debug, __VA_ARGS__)
-#define LOG_INFO(...) ::RevoMii::log(::RevoMii::LogLevel::Info, __VA_ARGS__)
-#define LOG_WARN(...) ::RevoMii::log(::RevoMii::LogLevel::Warning, __VA_ARGS__)
-#define LOG_ERROR(...) ::RevoMii::log(::RevoMii::LogLevel::Error, __VA_ARGS__)
-#define LOG_CRITICAL(...) ::RevoMii::log(::RevoMii::LogLevel::Critical, __VA_ARGS__)
+#define LOG_TRACE(...) ::revointernal::log(::revointernal::LogLevel::Trace, __VA_ARGS__)
+#define LOG_DEBUG(...) ::revointernal::log(::revointernal::LogLevel::Debug, __VA_ARGS__)
+#define LOG_INFO(...) ::revointernal::log(::revointernal::LogLevel::Info, __VA_ARGS__)
+#define LOG_WARN(...) ::revointernal::log(::revointernal::LogLevel::Warning, __VA_ARGS__)
+#define LOG_ERROR(...) ::revointernal::log(::revointernal::LogLevel::Error, __VA_ARGS__)
+#define LOG_CRITICAL(...) ::revointernal::log(::revointernal::LogLevel::Critical, __VA_ARGS__)
 
-} // namespace revomii::util
+} // namespace revointernal::util

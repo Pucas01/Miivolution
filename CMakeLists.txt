@@ -28,6 +28,11 @@ option(REVOMII_DOLPHIN
     OFF
 )
 
+option(REVOMII_BUILD_TESTS
+    "Build tests"
+    OFF
+)
+
 # =============================================================================
 # Aurora
 # =============================================================================
@@ -66,7 +71,7 @@ add_library(RevoMii::RevoInternal ALIAS RevoInternal)
 
 target_include_directories(RevoInternal
     PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 # =============================================================================
@@ -100,6 +105,12 @@ if(REVOMII_FETCH_AURORA)
         PUBLIC
             ${aurora_SOURCE_DIR}/include
     )
+    target_link_libraries(RVLFaceLib
+        PUBLIC
+            aurora::gx
+            aurora::mtx
+            aurora::vi
+    )
     target_compile_definitions(RVLFaceLib PUBLIC
         DOLPHIN_INCLUDES=1
         TARGET_PC=1
@@ -108,6 +119,7 @@ elseif(REVOMII_LINK_AURORA)
     target_link_libraries(RVLFaceLib
         PUBLIC
             aurora
+            aurora::gx
     )
     target_compile_definitions(RVLFaceLib PRIVATE
         DOLPHIN_INCLUDES=1
@@ -147,3 +159,25 @@ target_link_libraries(RevoMii
     PRIVATE
         RevoInternal
 )
+
+# =============================================================================
+# Tests
+# =============================================================================
+
+if(REVOMII_BUILD_TESTS)
+    enable_testing()
+
+    include(FetchContent)
+    FetchContent_Declare(
+        Catch2
+        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+        GIT_TAG v3.7.1
+    )
+    FetchContent_MakeAvailable(Catch2)
+
+    list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
+    include(CTest)
+    include(Catch)
+
+    add_subdirectory(tests)
+endif()
