@@ -13,6 +13,16 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Options
 # =============================================================================
 
+option(MIIVOLUTION_LINK_RAINFALL
+    "Automatically link against Rainfall"
+    OFF
+)
+
+option(MIIVOLUTION_FETCH_RAINFALL
+    "Automatically fetch Rainfall"
+    OFF
+)
+
 option(MIIVOLUTION_LINK_AURORA
     "Automatically link against Aurora"
     OFF
@@ -33,20 +43,57 @@ option(MIIVOLUTION_BUILD_TESTS
     OFF
 )
 
+if((MIIVOLUTION_LINK_AURORA OR MIIVOLUTION_FETCH_AURORA) AND
+   (MIIVOLUTION_LINK_RAINFALL OR MIIVOLUTION_FETCH_RAINFALL))
+    message(FATAL_ERROR
+        "Miivolution: Aurora and rainfall are mutually exclusive. "
+        "Enable MIIVOLUTION_*_AURORA or MIIVOLUTION_*_RAINFALL, not both.")
+endif()
+
 # =============================================================================
 # Aurora
 # =============================================================================
 
-if(MIIVOLUTION_FETCH_AURORA)
-    include(FetchContent)
+set(MIIVOLUTION_AURORA_TARGETS "")
 
+if(TARGET aurora::gx)
+    set(MIIVOLUTION_AURORA_TARGETS aurora::gx aurora::mtx aurora::vi)
+elseif(MIIVOLUTION_FETCH_AURORA)
+    include(FetchContent)
     FetchContent_Declare(
         aurora
         GIT_REPOSITORY https://github.com/encounter/aurora.git
         GIT_TAG 3227d76c60e1e782ca576610bce61c9e7744d8be
     )
-
     FetchContent_MakeAvailable(aurora)
+    set(MIIVOLUTION_AURORA_TARGETS aurora::gx aurora::mtx aurora::vi)
+elseif(MIIVOLUTION_LINK_AURORA)
+    message(FATAL_ERROR
+        "MIIVOLUTION_LINK_AURORA is ON but no 'aurora::gx' target exists. "
+        "Add Aurora before add_subdirectory(Miivolution).")
+endif()
+
+# =============================================================================
+# Rainfall
+# =============================================================================
+
+set(MIIVOLUTION_RAINFALL_TARGETS "")
+
+if(TARGET rainfall)
+    set(MIIVOLUTION_RAINFALL_TARGETS rainfall)
+elseif(MIIVOLUTION_FETCH_RAINFALL)
+    include(FetchContent)
+    FetchContent_Declare(
+        rainfall
+        GIT_REPOSITORY <rainfall repo url>
+        GIT_TAG <rainfall commit>
+    )
+    FetchContent_MakeAvailable(rainfall)
+    set(MIIVOLUTION_RAINFALL_TARGETS rainfall)
+elseif(MIIVOLUTION_LINK_RAINFALL)
+    message(FATAL_ERROR
+        "MIIVOLUTION_LINK_RAINFALL is ON but no 'rainfall' target exists. "
+        "Add rainfall before add_subdirectory(Miivolution).")
 endif()
 
 # =============================================================================
@@ -100,36 +147,14 @@ target_link_libraries(RVLFaceLib
         RevoInternal
 )
 
-if(MIIVOLUTION_FETCH_AURORA)
-    target_include_directories(RVLFaceLib
-        PUBLIC
-            ${aurora_SOURCE_DIR}/include
-    )
-    target_link_libraries(RVLFaceLib
-        PUBLIC
-            aurora::gx
-            aurora::mtx
-            aurora::vi
-    )
-    target_compile_definitions(RVLFaceLib PUBLIC
-        DOLPHIN_INCLUDES=1
-        TARGET_PC=1
-    )
-elseif(MIIVOLUTION_LINK_AURORA)
-    target_link_libraries(RVLFaceLib
-        PUBLIC
-            aurora
-            aurora::gx
-    )
-    target_compile_definitions(RVLFaceLib PRIVATE
-        DOLPHIN_INCLUDES=1
-        TARGET_PC=1
-    )
+if(MIIVOLUTION_AURORA_TARGETS)
+    target_link_libraries(RVLFaceLib PUBLIC ${MIIVOLUTION_AURORA_TARGETS})
+    if(aurora_SOURCE_DIR)
+        target_include_directories(RVLFaceLib PUBLIC ${aurora_SOURCE_DIR}/include)
+    endif()
+    target_compile_definitions(RVLFaceLib PUBLIC DOLPHIN_INCLUDES=1 TARGET_PC=1)
 elseif(MIIVOLUTION_DOLPHIN)
-    target_compile_definitions(RVLFaceLib PRIVATE
-        DOLPHIN_INCLUDES=1
-        TARGET_PC=1
-    )
+    target_compile_definitions(RVLFaceLib PRIVATE DOLPHIN_INCLUDES=1 TARGET_PC=1)
 endif()
 
 # =============================================================================
@@ -159,6 +184,12 @@ target_link_libraries(Miivolution
     PRIVATE
         RevoInternal
 )
+
+if(MIIVOLUTION_RAINFALL_TARGETS)
+    foreach(_t RevoInternal RVLFaceLib Miivolution)
+        target_link_libraries(${_t} PUBLIC ${MIIVOLUTION_RAINFALL_TARGETS})
+    endforeach()
+endif()
 
 # =============================================================================
 # Tests
