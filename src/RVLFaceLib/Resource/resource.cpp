@@ -26,7 +26,7 @@ void ResourceLoader::init(void* resourceData, u32 size) {
 
     const u8* ptr = static_cast<const u8*>(data_);
 
-    header_.version = revointernal::readBE<u16>(ptr + 2);
+    header_.version = revointernal::readBE16(ptr + 2);
 
     for (u32 i = 0; i < static_cast<u32>(ArcID::Max); i++) {
         const u32 archiveOffset = revointernal::readBE<u32>(ptr + ((i + 1) * 4));
@@ -36,8 +36,8 @@ void ResourceLoader::init(void* resourceData, u32 size) {
         }
 
         const u8* archivePtr = ptr + archiveOffset;
-        header_.archives[i].numFiles = revointernal::readBE<u16>(archivePtr);
-        header_.archives[i].biggestSize = revointernal::readBE<u16>(archivePtr + 2);
+        header_.archives[i].numFiles = revointernal::readBE16(archivePtr);
+        header_.archives[i].biggestSize = revointernal::readBE16(archivePtr + 2);
         header_.archives[i].offset = archiveOffset + 4;
     }
 }

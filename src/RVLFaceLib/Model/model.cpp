@@ -361,8 +361,8 @@ bool decodePartTex(rvlfacelib::ArcID arc, u16 file, PartTex& out) {
         return false;
     }
     u8 fmt = f[0];
-    out.w = revointernal::readBE<u16>(f + 2);
-    out.h = revointernal::readBE<u16>(f + 4);
+    out.w = revointernal::readBE16(f + 2);
+    out.h = revointernal::readBE16(f + 4);
     u32 ofs = revointernal::readBE<u32>(f + 28);
     const u8* d = f + ofs;
     out.px.assign(out.w * out.h, Rgba{0, 0, 0, 0});
@@ -377,7 +377,7 @@ bool decodePartTex(rvlfacelib::ArcID arc, u16 file, PartTex& out) {
                 for (int x = 0; x < bw; x++) {
                     Rgba c{0, 0, 0, 0};
                     if (fmt == 5) {
-                        u16 v = revointernal::readBE<u16>(d + pos);
+                        u16 v = revointernal::readBE16(d + pos);
                         pos += 2;
                         if (v & 0x8000) {
                             c = {((v >> 10) & 31) / 31.0f, ((v >> 5) & 31) / 31.0f, (v & 31) / 31.0f, 1.0f};
@@ -959,7 +959,7 @@ void RFLiInitShapeRes(rvlfacelib::ShapeRes* shape) {
         }
     }
 
-    u16 numVtxPos = revointernal::readBE<u16>(ptr8);
+    u16 numVtxPos = revointernal::readBE16(ptr8);
     if (numVtxPos == 0) {
         shape->numVtxPos = 0;
         shape->numVtxNrm = 0;
@@ -1029,7 +1029,7 @@ void RFLiInitShapeRes(rvlfacelib::ShapeRes* shape) {
         ptr8 += byteSize;
     }
 
-    shape->numVtxNrm = revointernal::readBE<u16>(ptr8);
+    shape->numVtxNrm = revointernal::readBE16(ptr8);
     ptr8 += sizeof(u16);
 
     {
@@ -1068,7 +1068,7 @@ void RFLiInitShapeRes(rvlfacelib::ShapeRes* shape) {
     if (skipTxc) {
         shape->numVtxTxc = 0;
     } else {
-        shape->numVtxTxc = revointernal::readBE<u16>(ptr8);
+        shape->numVtxTxc = revointernal::readBE16(ptr8);
         ptr8 += sizeof(u16);
 
         u32 byteSize = SIZE_VTX_TXC(shape->numVtxTxc);
@@ -1120,8 +1120,8 @@ void RFLiInitTexRes(GXTexObj* texObj, u32 part, u16 file, void* buffer) {
     RFLiLoadShpTexture(part, file, tex);
 
     u8 fmt = tex[0];
-    u16 width = revointernal::readBE<u16>(tex + 2);
-    u16 height = revointernal::readBE<u16>(tex + 4);
+    u16 width = revointernal::readBE16(tex + 2);
+    u16 height = revointernal::readBE16(tex + 4);
     u8 wrapS = tex[6];
     u8 wrapT = tex[7];
     u32 imageOfs = revointernal::readBE<u32>(tex + 28);

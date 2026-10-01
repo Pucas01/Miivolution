@@ -1,4 +1,5 @@
 #include "RFLi_Types.hpp"
+#include "RevoInternal/endian.hpp"
 #include <cstring>
 
 alignas(16) static const u8 scDefaultData[6][74] = {
@@ -54,10 +55,6 @@ alignas(16) static const u8 scDefaultData[6][74] = {
 
 namespace {
 
-u16 rdBE(const u8* p) {
-    return static_cast<u16>((p[0] << 8) | p[1]);
-}
-
 u32 bits(u16 word, int& pos, int width) {
     pos -= width;
     return (word >> pos) & ((1u << width) - 1);
@@ -66,7 +63,7 @@ u32 bits(u16 word, int& pos, int width) {
 void parseRawData(const u8* r, RFLiCharData* d) {
     std::memset(d, 0, sizeof(*d));
     int p;
-    u16 w = rdBE(r);
+    u16 w = revointernal::readBE16(r);
     p = 16;
     d->padding0 = bits(w, p, 1);
     d->sex = bits(w, p, 1);
@@ -74,13 +71,13 @@ void parseRawData(const u8* r, RFLiCharData* d) {
     d->birthDay = bits(w, p, 5);
     d->favoriteColor = bits(w, p, 4);
     d->favorite = bits(w, p, 1);
-    for (int i = 0; i < RFL_NAME_LEN; i++) d->name[i] = rdBE(r + 2 + i * 2);
+    for (int i = 0; i < RFL_NAME_LEN; i++) d->name[i] = revointernal::readBE16(r + 2 + i * 2);
     d->height = r[22];
     d->build = r[23];
     std::memcpy(&d->createID, r + 24, sizeof(RFLCreateID));
 
     const u8* q = r + 32;
-    w = rdBE(q); q += 2; p = 16;
+    w = revointernal::readBE16(q); q += 2; p = 16;
     d->faceType = bits(w, p, 3);
     d->faceColor = bits(w, p, 3);
     d->faceTex = bits(w, p, 4);
@@ -88,67 +85,67 @@ void parseRawData(const u8* r, RFLiCharData* d) {
     d->localonly = bits(w, p, 1);
     d->type = bits(w, p, 2);
 
-    w = rdBE(q); q += 2; p = 16;
+    w = revointernal::readBE16(q); q += 2; p = 16;
     d->hairType = bits(w, p, 7);
     d->hairColor = bits(w, p, 3);
     d->hairFlip = bits(w, p, 1);
     d->padding3 = bits(w, p, 5);
 
-    w = rdBE(q); q += 2; p = 16;
+    w = revointernal::readBE16(q); q += 2; p = 16;
     d->eyebrowType = bits(w, p, 5);
     d->eyebrowRotate = bits(w, p, 5);
     d->padding4 = bits(w, p, 6);
 
-    w = rdBE(q); q += 2; p = 16;
+    w = revointernal::readBE16(q); q += 2; p = 16;
     d->eyebrowColor = bits(w, p, 3);
     d->eyebrowScale = bits(w, p, 4);
     d->eyebrowY = bits(w, p, 5);
     d->eyebrowX = bits(w, p, 4);
 
-    w = rdBE(q); q += 2; p = 16;
+    w = revointernal::readBE16(q); q += 2; p = 16;
     d->eyeType = bits(w, p, 6);
     d->eyeRotate = bits(w, p, 5);
     d->eyeY = bits(w, p, 5);
 
-    w = rdBE(q); q += 2; p = 16;
+    w = revointernal::readBE16(q); q += 2; p = 16;
     d->eyeColor = bits(w, p, 3);
     d->eyeScale = bits(w, p, 4);
     d->eyeX = bits(w, p, 4);
     d->padding5 = bits(w, p, 5);
 
-    w = rdBE(q); q += 2; p = 16;
+    w = revointernal::readBE16(q); q += 2; p = 16;
     d->noseType = bits(w, p, 4);
     d->noseScale = bits(w, p, 4);
     d->noseY = bits(w, p, 5);
     d->padding6 = bits(w, p, 3);
 
-    w = rdBE(q); q += 2; p = 16;
+    w = revointernal::readBE16(q); q += 2; p = 16;
     d->mouthType = bits(w, p, 5);
     d->mouthColor = bits(w, p, 2);
     d->mouthScale = bits(w, p, 4);
     d->mouthY = bits(w, p, 5);
 
-    w = rdBE(q); q += 2; p = 16;
+    w = revointernal::readBE16(q); q += 2; p = 16;
     d->glassType = bits(w, p, 4);
     d->glassColor = bits(w, p, 3);
     d->glassScale = bits(w, p, 4);
     d->glassY = bits(w, p, 5);
 
-    w = rdBE(q); q += 2; p = 16;
+    w = revointernal::readBE16(q); q += 2; p = 16;
     d->mustacheType = bits(w, p, 2);
     d->beardType = bits(w, p, 2);
     d->beardColor = bits(w, p, 3);
     d->beardScale = bits(w, p, 4);
     d->beardY = bits(w, p, 5);
 
-    w = rdBE(q); q += 2; p = 16;
+    w = revointernal::readBE16(q); q += 2; p = 16;
     d->moleType = bits(w, p, 1);
     d->moleScale = bits(w, p, 4);
     d->moleY = bits(w, p, 5);
     d->moleX = bits(w, p, 5);
     d->padding8 = bits(w, p, 1);
 
-    for (int i = 0; i < RFL_CREATOR_LEN; i++) d->creatorName[i] = rdBE(q + i * 2);
+    for (int i = 0; i < RFL_CREATOR_LEN; i++) d->creatorName[i] = revointernal::readBE16(q + i * 2);
 }
 
 }

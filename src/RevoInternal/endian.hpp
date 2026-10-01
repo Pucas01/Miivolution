@@ -79,4 +79,8 @@ inline int16_t readBE<int16_t>(const uint8_t* ptr) {
 #endif
 }
 
+inline uint16_t readBE16(const uint8_t* ptr) {
+    return readBE<uint16_t>(ptr);
+}
+
 }
