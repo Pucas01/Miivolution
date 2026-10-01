@@ -19,7 +19,8 @@ RFLErrcode RFLiPickupCharInfo(void* info, RFLDataSource source, RFLMiddleDB* db,
 
     switch (source) {
     case RFLDataSource_Official:
-        err = RFLErrcode_Broken;
+        RFLiGetDefaultData(charInfo, RFLiPlaceholderOfficialIndex);
+        err = RFLErrcode_Success;
         break;
     case RFLDataSource_Controller1:
     case RFLDataSource_Controller2:

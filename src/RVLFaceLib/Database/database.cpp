@@ -1,4 +1,5 @@
 #include "RFL_Database.h"
+#include "RFLi_Types.hpp"
 #include "RFL_System.h"
 #include "RVLFaceLib/internal.hpp"
 
@@ -9,7 +10,7 @@ BOOL RFLIsAvailableOfficialData(u16 index) {
         return FALSE;
     }
 
-    return FALSE;
+    return index == RFLiPlaceholderOfficialIndex ? TRUE : FALSE;
 }
 
 BOOL RFLSearchOfficialData(const RFLCreateID* id, u16* index) {
@@ -21,7 +22,8 @@ BOOL RFLSearchOfficialData(const RFLCreateID* id, u16* index) {
         return FALSE;
     }
 
-    return FALSE;
+    *index = RFLiPlaceholderOfficialIndex;
+    return TRUE;
 }
 
 }

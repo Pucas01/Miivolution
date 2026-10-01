@@ -59,6 +59,7 @@ const u8* ResourceLoader::getFileData(ArcID arc, u16 fileIndex, u32* outSize) co
 
     const u8* ptr = static_cast<const u8*>(data_);
     const u8* archiveData = ptr + archive.offset;
+    const u8* fileBase = archiveData + (archive.numFiles + 1) * 4;
 
     const u32 fileOffset = revointernal::readBE<u32>(archiveData + fileIndex * 4);
     const u32 nextOffset = revointernal::readBE<u32>(archiveData + (fileIndex + 1) * 4);
@@ -68,7 +69,7 @@ const u8* ResourceLoader::getFileData(ArcID arc, u16 fileIndex, u32* outSize) co
         *outSize = fileSize;
     }
 
-    return archiveData + fileOffset;
+    return fileBase + fileOffset;
 }
 
 u32 ResourceLoader::getShapeSize(ArcID arc, u16 fileIndex) const {

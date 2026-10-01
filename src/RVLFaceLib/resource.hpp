@@ -5,24 +5,24 @@
 namespace rvlfacelib {
 
 enum class ArcID : u32 {
-    ShapeFaceline = 0,
-    ShapeForehead,
-    ShapeHair,
-    ShapeNose,
-    ShapeNoseline,
-    ShapeBeard,
-    ShapeMask,
-    ShapeGlass,
-    ShapeCap,
+    ShapeBeard = 0,
     TexEye,
     TexEyebrow,
+    ShapeFaceline,
+    TexFaceline,
+    ShapeForehead,
+    ShapeGlass,
+    TexGlass,
+    ShapeHair,
+    ShapeMask,
+    TexMole,
     TexMouth,
     TexMustache,
-    TexMole,
-    TexFaceline,
-    TexCap,
+    ShapeNose,
+    ShapeNoseline,
     TexNoseline,
-    TexGlass,
+    ShapeCap,
+    TexCap,
     Max
 };
 
@@ -44,6 +44,7 @@ public:
     void init(void* resourceData, u32 size);
     bool isValid() const { return data_ != nullptr && size_ > 0; }
 
+    const u8* getFile(ArcID arc, u16 fileIndex, u32* outSize) const { return getFileData(arc, fileIndex, outSize); }
     u32 getShapeSize(ArcID arc, u16 fileIndex) const;
     void loadShape(ArcID arc, u16 fileIndex, void* dest) const;
 
