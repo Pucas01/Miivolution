@@ -29,3 +29,9 @@ list(APPEND RVLFACE_SOURCES
     ${LIB_ROOT}/Database/middle_db.cpp
     ${LIB_ROOT}/Database/controller.cpp
 )
+
+# Utilities
+
+list(APPEND RVLFACE_SOURCES
+    ${LIB_ROOT}/Utilities/nwc24.cpp
+)

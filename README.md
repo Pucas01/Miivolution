@@ -13,3 +13,8 @@ Miivolution's include layout mirrors RVLFaceLib almost exactly, but adds a `Miiv
 * Importing a Mii from disc using our custom format (`.mii`)
 * Getting raw model data from a Mii, for rendering in other applications
 * Exporting a Mii to modern model formats (`obj`, `gltf`, etc.)
+
+## Not-planned Features (for now)
+
+* NWC24 support
+* Wiimote Mii support

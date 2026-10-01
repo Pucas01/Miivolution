@@ -35,13 +35,4 @@ void RFLSetIconDrawDoneCallback(RFLCallback callback) {
     RVL_NOT_IMPL("RFLSetIconDrawDoneCallback");
 }
 
-// =============================================================================
-// RFL_NWC24.h
-// =============================================================================
-
-RFLErrcode RFLCommitNWC24Msg(struct NWC24MsgObj* msg, u16 index) {
-    RVL_NOT_IMPL("RFLCommitNWC24Msg");
-    return RFLErrcode_NotAvailable;
-}
-
 } // extern "C"
