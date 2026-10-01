@@ -1,7 +1,12 @@
 #include "RVLFaceLib/internal.hpp"
 #include "RVLFaceLib/RFL_System.h"
 #include <cstring>
+#include <cstdlib>
 #include <algorithm>
+
+#ifndef _WIN32
+#include <cstdlib>
+#endif
 
 extern "C" void RFLiInitResourceCache(void* data, u32 size);
 
@@ -35,6 +40,28 @@ SystemState systemState;
 }
 
 extern "C" {
+
+void* RFLiAlloc32(u32 size) {
+    void* ptr = nullptr;
+    #ifdef _WIN32
+        ptr = _aligned_malloc(size, 32);
+    #else
+        if (posix_memalign(&ptr, 32, size) != 0) {
+            ptr = nullptr;
+        }
+    #endif
+    return ptr;
+}
+
+void RFLiFree(void* block) {
+    if (!block) return;
+
+    #ifdef _WIN32
+        _aligned_free(block);
+    #else
+        free(block);
+    #endif
+}
 
 u32 RFLGetWorkSize(BOOL deluxeTex) {
     return deluxeTex ? RFL_DELUXE_WORK_SIZE : RFL_WORK_SIZE;

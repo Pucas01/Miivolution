@@ -1,9 +1,9 @@
-# RevoMii Tests
+# Miivolution Tests
 
 ## Building Tests
 
 ```bash
-cmake -B build -G Ninja -DREVOMII_BUILD_TESTS=ON -DREVOMII_FETCH_AURORA=ON
+cmake -B build -G Ninja -DMIIVOLUTION_BUILD_TESTS=ON -DMIIVOLUTION_FETCH_AURORA=ON
 ninja -C build
 ```
 
@@ -11,15 +11,15 @@ ninja -C build
 
 ```bash
 # Run all tests
-./build/tests/revomii_tests
+./build/tests/miivolution_tests
 
 # Run specific test cases
-./build/tests/revomii_tests "[logging]"
-./build/tests/revomii_tests "[rfl]"
+./build/tests/miivolution_tests "[logging]"
+./build/tests/miivolution_tests "[rfl]"
 
 # Verbose output
-./build/tests/revomii_tests -s
+./build/tests/miivolution_tests -s
 
 # List all tests
-./build/tests/revomii_tests --list-tests
+./build/tests/miivolution_tests --list-tests
 ```

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
 
-project(RevoMii
+project(Miivolution
     VERSION 0.1.0
     LANGUAGES C CXX
 )
@@ -13,22 +13,22 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Options
 # =============================================================================
 
-option(REVOMII_LINK_AURORA
+option(MIIVOLUTION_LINK_AURORA
     "Automatically link against Aurora"
     OFF
 )
 
-option(REVOMII_FETCH_AURORA
+option(MIIVOLUTION_FETCH_AURORA
     "Automatically fetch Aurora"
     OFF
 )
 
-option(REVOMII_DOLPHIN
+option(MIIVOLUTION_DOLPHIN
     "Use Dolphin headers instead of Revolution (required for Aurora)"
     OFF
 )
 
-option(REVOMII_BUILD_TESTS
+option(MIIVOLUTION_BUILD_TESTS
     "Build tests"
     OFF
 )
@@ -37,7 +37,7 @@ option(REVOMII_BUILD_TESTS
 # Aurora
 # =============================================================================
 
-if(REVOMII_FETCH_AURORA)
+if(MIIVOLUTION_FETCH_AURORA)
     include(FetchContent)
 
     FetchContent_Declare(
@@ -59,15 +59,15 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies.cmake)
 # RevoInternal (shared utilities)
 # =============================================================================
 
-set(REVOMII_INTERNAL_SOURCES)
+set(MIIVOLUTION_INTERNAL_SOURCES)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/internal_sources.cmake)
 
 add_library(RevoInternal STATIC
-    ${REVOMII_INTERNAL_SOURCES}
+    ${MIIVOLUTION_INTERNAL_SOURCES}
 )
 
-add_library(RevoMii::RevoInternal ALIAS RevoInternal)
+add_library(Miivolution::RevoInternal ALIAS RevoInternal)
 
 target_include_directories(RevoInternal
     PUBLIC
@@ -78,15 +78,15 @@ target_include_directories(RevoInternal
 # RVLFaceLib
 # =============================================================================
 
-set(REVOMII_RVLFACE_SOURCES)
+set(RVLFACE_SOURCES)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/lib_sources.cmake)
 
 add_library(RVLFaceLib STATIC
-    ${REVOMII_RVLFACE_SOURCES}
+    ${RVLFACE_SOURCES}
 )
 
-add_library(RevoMii::RVLFaceLib ALIAS RVLFaceLib)
+add_library(Miivolution::RVLFaceLib ALIAS RVLFaceLib)
 
 target_include_directories(RVLFaceLib
     PUBLIC
@@ -100,7 +100,7 @@ target_link_libraries(RVLFaceLib
         RevoInternal
 )
 
-if(REVOMII_FETCH_AURORA)
+if(MIIVOLUTION_FETCH_AURORA)
     target_include_directories(RVLFaceLib
         PUBLIC
             ${aurora_SOURCE_DIR}/include
@@ -115,7 +115,7 @@ if(REVOMII_FETCH_AURORA)
         DOLPHIN_INCLUDES=1
         TARGET_PC=1
     )
-elseif(REVOMII_LINK_AURORA)
+elseif(MIIVOLUTION_LINK_AURORA)
     target_link_libraries(RVLFaceLib
         PUBLIC
             aurora
@@ -125,7 +125,7 @@ elseif(REVOMII_LINK_AURORA)
         DOLPHIN_INCLUDES=1
         TARGET_PC=1
     )
-elseif(REVOMII_DOLPHIN)
+elseif(MIIVOLUTION_DOLPHIN)
     target_compile_definitions(RVLFaceLib PRIVATE
         DOLPHIN_INCLUDES=1
         TARGET_PC=1
@@ -133,27 +133,27 @@ elseif(REVOMII_DOLPHIN)
 endif()
 
 # =============================================================================
-# RevoMii
+# MIIVOLUTION
 # =============================================================================
 
-set(REVOMII_SOURCES)
+set(MIIVOLUTION_SOURCES)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/revo_sources.cmake)
 
-add_library(RevoMii STATIC
-    ${REVOMII_SOURCES}
+add_library(Miivolution STATIC
+    ${MIIVOLUTION_SOURCES}
 )
 
-add_library(RevoMii::RevoMii ALIAS RevoMii)
+add_library(Miivolution::Miivolution ALIAS Miivolution)
 
-target_include_directories(RevoMii
+target_include_directories(Miivolution
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-target_link_libraries(RevoMii
+target_link_libraries(Miivolution
     PUBLIC
         RVLFaceLib
     PRIVATE
@@ -164,7 +164,7 @@ target_link_libraries(RevoMii
 # Tests
 # =============================================================================
 
-if(REVOMII_BUILD_TESTS)
+if(MIIVOLUTION_BUILD_TESTS)
     enable_testing()
 
     include(FetchContent)

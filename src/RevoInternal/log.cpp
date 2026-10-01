@@ -83,4 +83,4 @@ void log(LogLevel level, const char* fmt, ...) {
     }
 }
 
-} // namespace revomii::util
+} // namespace revointernal

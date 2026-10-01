@@ -62,9 +62,4 @@ RFLErrcode RFLiPickupCharInfo(void* info, RFLDataSource source, RFLMiddleDB* db,
     return RFLErrcode_Success;
 }
 
-void RFLiInitCharModel(RFLCharModel* model, void* info, void* work, RFLResolution res, u32 exprFlags) {
-    // This would normally build the full model resources, but for now we just initialize the basics
-    // The model was already set up in RFLInitCharModel
-}
-
 }

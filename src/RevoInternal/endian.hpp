@@ -68,4 +68,15 @@ inline uint8_t readBE<uint8_t>(const uint8_t* ptr) {
     return *ptr;
 }
 
+template<>
+inline int16_t readBE<int16_t>(const uint8_t* ptr) {
+    uint16_t value;
+    std::memcpy(&value, ptr, sizeof(uint16_t));
+#ifdef REVO_LITTLE_ENDIAN
+    return static_cast<int16_t>(bswap16(value));
+#else
+    return static_cast<int16_t>(value);
+#endif
+}
+
 }

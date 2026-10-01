@@ -1,6 +1,17 @@
 #include "RVLFaceLib/internal.hpp"
 #include "RVLFaceLib/RFL_Model.h"
 #include "RVLFaceLib/RFL_System.h"
+#include "model_internal.hpp"
+#include "RevoInternal/endian.hpp"
+
+extern "C" {
+    void* RFLiAlloc32(u32 size);
+    void RFLiFree(void* block);
+    u32 RFLiGetShapeSize(u32 part, u16 file);
+    void RFLiLoadShape(u32 part, u16 file, void* dest);
+    u32 RFLiGetShpTexSize(u32 part, u16 file);
+    void* RFLiLoadShpTexture(u32 part, u16 file, void* dest);
+}
 
 #if DOLPHIN_INCLUDES
 #include <dolphin/gx.h>
@@ -67,6 +78,46 @@ constexpr std::array<GXColor, RFLFavoriteColor_Max> favoriteColors = {{
 }};
 
 constexpr GXColor white = {255, 255, 255, 255};
+
+constexpr std::array<GXColor, 6> facelineColors = {{
+    {240, 216, 196, 255},
+    {255, 188, 128, 255},
+    {216, 136, 80,  255},
+    {255, 176, 144, 255},
+    {152, 80,  48,  255},
+    {82,  46,  28,  255}
+}};
+
+constexpr std::array<GXColor, 8> hairColors = {{
+    {30,  26,  24,  255},
+    {56,  32,  21,  255},
+    {85,  38,  23,  255},
+    {112, 64,  36,  255},
+    {114, 114, 120, 255},
+    {73,  54,  26,  255},
+    {122, 89,  40,  255},
+    {193, 159, 100, 255}
+}};
+
+constexpr std::array<GXColor, 8> beardColors = {{
+    {30,  26,  24,  255},
+    {56,  32,  21,  255},
+    {85,  38,  23,  255},
+    {112, 64,  36,  255},
+    {114, 114, 120, 255},
+    {73,  54,  26,  255},
+    {122, 89,  40,  255},
+    {193, 159, 100, 255}
+}};
+
+constexpr std::array<GXColor, 6> glassColors = {{
+    {16,  16, 16, 255},
+    {96,  56, 16, 255},
+    {152, 24, 16, 255},
+    {32,  48, 96, 255},
+    {144, 88, 0,  255},
+    {96,  88, 80, 255}
+}};
 
 constexpr RFLDrawCoreSetting defaultDrawCoreSetting2Tev = {
     1, GX_TEXCOORD0, GX_TEXMAP0, 2, GX_TEV_SWAP0, GX_KCOLOR0, GX_TEVPREV, GX_PNMTX0, FALSE
@@ -150,28 +201,98 @@ struct CharModelInternal {
     GXTexObj* maskTexObj[RFLExp_Max] = {nullptr};
 };
 
-CoordinateData coordinateData;
+CoordinateData coordinateData = {
+    .uOff = 1,
+    .fOff = 2,
+    .rOff = 0,
+    .uRev = false,
+    .fRev = false,
+    .rRev = false
+};
 
+void transformCoordinate(s16* to, const s16* from) {
+    to[coordinateData.rOff] = coordinateData.rRev ? -from[0] : from[0];
+    to[coordinateData.uOff] = coordinateData.uRev ? -from[1] : from[1];
+    to[coordinateData.fOff] = coordinateData.fRev ? -from[2] : from[2];
+}
+
+}
+
+GXColor getFacelineColor(u8 index) {
+    if (index >= facelineColors.size()) {
+        return facelineColors[0];
+    }
+    return facelineColors[index];
+}
+
+GXColor getHairColor(u8 index) {
+    if (index >= hairColors.size()) {
+        return hairColors[0];
+    }
+    return hairColors[index];
+}
+
+GXColor getBeardColor(u8 index) {
+    if (index >= beardColors.size()) {
+        return beardColors[0];
+    }
+    return beardColors[index];
+}
+
+GXColor getGlassColor(u8 index) {
+    if (index >= glassColors.size()) {
+        return glassColors[0];
+    }
+    return glassColors[index];
 }
 
 extern "C" {
 
+GXColor RFLiGetFacelineColor(u8 index) {
+    return getFacelineColor(index);
+}
+
+GXColor RFLiGetHairColor(u8 index) {
+    return getHairColor(index);
+}
+
+GXColor RFLiGetBeardColor(u8 index) {
+    return getBeardColor(index);
+}
+
+GXColor RFLiGetGlassColor(u8 index) {
+    return getGlassColor(index);
+}
+
+void RFLiTransformCoordinate(s16* to, const s16* from) {
+    transformCoordinate(to, from);
+}
+
 void RFLSetCoordinate(RFLCoordinateType u, RFLCoordinateType f) {
 
-    union CoordBytes {
-        RFLCoordinateType c;
-        u8 b[4];
+    auto extractBytes = [](RFLCoordinateType c) -> std::array<u8, 3> {
+        return {
+            static_cast<u8>((c >> 24) & 0xFF),
+            static_cast<u8>((c >> 16) & 0xFF),
+            static_cast<u8>((c >> 8) & 0xFF)
+        };
     };
 
-    CoordBytes uu{.c = u};
-    CoordBytes uf{.c = f};
-    CoordBytes ur;
+    auto makeCoordType = [](const std::array<u8, 3>& b) -> RFLCoordinateType {
+        return static_cast<RFLCoordinateType>(
+            (b[0] << 24) | (b[1] << 16) | (b[2] << 8)
+        );
+    };
 
-    ur.b[0] = (uu.b[1] * uf.b[2]) - (uu.b[2] * uf.b[1]);
-    ur.b[1] = (uu.b[2] * uf.b[0]) - (uu.b[0] * uf.b[2]);
-    ur.b[2] = (uu.b[0] * uf.b[1]) - (uu.b[1] * uf.b[0]);
+    auto uu = extractBytes(u);
+    auto uf = extractBytes(f);
+    std::array<u8, 3> ur;
 
-    RFLCoordinateType r = ur.c;
+    ur[0] = (uu[1] * uf[2]) - (uu[2] * uf[1]);
+    ur[1] = (uu[2] * uf[0]) - (uu[0] * uf[2]);
+    ur[2] = (uu[0] * uf[1]) - (uu[1] * uf[0]);
+
+    RFLCoordinateType r = makeCoordType(ur);
 
     if (u & RFLCoordinateType_X) {
         coordinateData.uOff = 0;
@@ -216,7 +337,6 @@ u32 RFLGetModelBufferSize(RFLResolution res, u32 exprFlags) {
 }
 
 extern "C" RFLErrcode RFLiPickupCharInfo(void* info, RFLDataSource source, RFLMiddleDB* db, u16 index);
-extern "C" void RFLiInitCharModel(RFLCharModel* model, void* info, void* work, RFLResolution res, u32 exprFlags);
 
 RFLErrcode RFLInitCharModel(RFLCharModel* model, RFLDataSource src,
                             RFLMiddleDB* db, u16 id, void* work,
@@ -262,8 +382,6 @@ RFLErrcode RFLInitCharModel(RFLCharModel* model, RFLDataSource src,
 
     internal->res = reinterpret_cast<CharModelRes*>(workPtr);
     std::memset(internal->res, 0, sizeof(CharModelRes));
-
-    RFLiInitCharModel(model, charInfoBuf, work, res, exprFlags);
 
     return RFLErrcode_Success;
 }
@@ -427,6 +545,497 @@ void RFLDrawShape(const RFLCharModel* model) {
     GXLoadPosMtxImm(internal->posMtx, GX_PNMTX0);
     GXLoadNrmMtxImm(internal->nrmMtx, GX_PNMTX0);
     GXSetCurrentMtx(GX_PNMTX0);
+}
+
+void RFLiInitShapeRes(rvlfacelib::ShapeRes* shape) {
+    using namespace rvlfacelib;
+
+    bool skipTxc = shape->part == PartsShp::Forehead ||
+                   shape->part == PartsShp::Hair ||
+                   shape->part == PartsShp::Beard ||
+                   shape->part == PartsShp::Nose;
+
+    u32 fileSize = RFLiGetShapeSize(static_cast<u32>(shape->part), shape->file);
+    void* res = RFLiAlloc32(fileSize);
+    if (!res) {
+        shape->numVtxPos = 0;
+        shape->numVtxNrm = 0;
+        shape->numVtxTxc = 0;
+        shape->dlSize = 0;
+        return;
+    }
+
+    RFLiLoadShape(static_cast<u32>(shape->part), shape->file, res);
+
+    auto* ptr8 = static_cast<u8*>(res);
+    ptr8 += sizeof(u32);
+
+    if (shape->part == PartsShp::Faceline) {
+        std::memcpy(shape->noseTrans, ptr8, sizeof(Vec));
+        ptr8 += sizeof(Vec);
+        std::memcpy(shape->beardTrans, ptr8, sizeof(Vec));
+        ptr8 += sizeof(Vec);
+        std::memcpy(shape->hairTrans, ptr8, sizeof(Vec));
+        ptr8 += sizeof(Vec);
+    }
+
+    u16 numVtxPos = revointernal::readBE<u16>(ptr8);
+    if (numVtxPos == 0) {
+        shape->numVtxPos = 0;
+        shape->numVtxNrm = 0;
+        shape->numVtxTxc = 0;
+        shape->dlSize = 0;
+        RFLiFree(res);
+        return;
+    }
+
+    shape->numVtxPos = numVtxPos;
+    ptr8 += sizeof(u16);
+
+    {
+        u32 byteSize = SIZE_VTX_POS(shape->numVtxPos);
+        auto* ptr16 = reinterpret_cast<s16*>(ptr8);
+
+        if (shape->transform) {
+            s32 s = static_cast<s32>(256.0f * shape->posScale);
+            s32 tx = static_cast<s32>(256.0f * shape->posTrans->x);
+            s32 ty = static_cast<s32>(256.0f * shape->posTrans->y);
+            s32 tz = static_cast<s32>(256.0f * shape->posTrans->z);
+
+            for (u16 i = 0; i < shape->numVtxPos; i++) {
+                s16 temp[3];
+                s16 srcX = revointernal::readBE<s16>(reinterpret_cast<u8*>(&ptr16[0]));
+                s16 srcY = revointernal::readBE<s16>(reinterpret_cast<u8*>(&ptr16[1]));
+                s16 srcZ = revointernal::readBE<s16>(reinterpret_cast<u8*>(&ptr16[2]));
+
+                if (shape->flipX) {
+                    temp[0] = static_cast<s16>(tx + ((-srcX * s) >> 8));
+                } else {
+                    temp[0] = static_cast<s16>(tx + ((srcX * s) >> 8));
+                }
+
+                temp[1] = static_cast<s16>(ty + ((srcY * s) >> 8));
+                temp[2] = static_cast<s16>(tz + ((srcZ * s) >> 8));
+
+                RFLiTransformCoordinate(&shape->vtxPosBuf[i * VTX_COORDS_IN_POS], temp);
+                ptr16 += VTX_COORDS_IN_POS;
+            }
+        } else if (shape->flipX) {
+            for (u16 i = 0; i < shape->numVtxPos; i++) {
+                s16 temp[3];
+                s16 srcX = revointernal::readBE<s16>(reinterpret_cast<u8*>(&ptr16[0]));
+                s16 srcY = revointernal::readBE<s16>(reinterpret_cast<u8*>(&ptr16[1]));
+                s16 srcZ = revointernal::readBE<s16>(reinterpret_cast<u8*>(&ptr16[2]));
+
+                temp[0] = -srcX;
+                temp[1] = srcY;
+                temp[2] = srcZ;
+
+                RFLiTransformCoordinate(&shape->vtxPosBuf[i * VTX_COORDS_IN_POS], temp);
+                ptr16 += VTX_COORDS_IN_POS;
+            }
+        } else {
+            for (u16 i = 0; i < shape->numVtxPos; i++) {
+                s16 temp[3];
+                temp[0] = revointernal::readBE<s16>(reinterpret_cast<u8*>(&ptr16[0]));
+                temp[1] = revointernal::readBE<s16>(reinterpret_cast<u8*>(&ptr16[1]));
+                temp[2] = revointernal::readBE<s16>(reinterpret_cast<u8*>(&ptr16[2]));
+
+                RFLiTransformCoordinate(&shape->vtxPosBuf[i * VTX_COORDS_IN_POS], temp);
+                ptr16 += VTX_COORDS_IN_POS;
+            }
+        }
+
+        ptr8 += byteSize;
+    }
+
+    shape->numVtxNrm = revointernal::readBE<u16>(ptr8);
+    ptr8 += sizeof(u16);
+
+    {
+        auto* ptr16 = reinterpret_cast<s16*>(ptr8);
+        u32 byteSize = SIZE_VTX_NRM(shape->numVtxNrm);
+
+        if (shape->flipX) {
+            for (u16 i = 0; i < shape->numVtxNrm; i++) {
+                s16 temp[3];
+                s16 srcX = revointernal::readBE<s16>(reinterpret_cast<u8*>(&ptr16[0]));
+                s16 srcY = revointernal::readBE<s16>(reinterpret_cast<u8*>(&ptr16[1]));
+                s16 srcZ = revointernal::readBE<s16>(reinterpret_cast<u8*>(&ptr16[2]));
+
+                temp[0] = -srcX;
+                temp[1] = srcY;
+                temp[2] = srcZ;
+
+                RFLiTransformCoordinate(&shape->vtxNrmBuf[i * VTX_COORDS_IN_NRM], temp);
+                ptr16 += VTX_COORDS_IN_NRM;
+            }
+        } else {
+            for (u16 i = 0; i < shape->numVtxNrm; i++) {
+                s16 temp[3];
+                temp[0] = revointernal::readBE<s16>(reinterpret_cast<u8*>(&ptr16[0]));
+                temp[1] = revointernal::readBE<s16>(reinterpret_cast<u8*>(&ptr16[1]));
+                temp[2] = revointernal::readBE<s16>(reinterpret_cast<u8*>(&ptr16[2]));
+
+                RFLiTransformCoordinate(&shape->vtxNrmBuf[i * VTX_COORDS_IN_NRM], temp);
+                ptr16 += VTX_COORDS_IN_NRM;
+            }
+        }
+
+        ptr8 += byteSize;
+    }
+
+    if (skipTxc) {
+        shape->numVtxTxc = 0;
+    } else {
+        shape->numVtxTxc = revointernal::readBE<u16>(ptr8);
+        ptr8 += sizeof(u16);
+
+        u32 byteSize = SIZE_VTX_TXC(shape->numVtxTxc);
+        std::memcpy(shape->vtxTxcBuf, ptr8, byteSize);
+        ptr8 += byteSize;
+    }
+
+    {
+        s32 primitiveNum = *ptr8++;
+
+        GXBeginDisplayList(shape->dlBuf, shape->dlBufSize);
+
+        for (s32 i = 0; i < primitiveNum; i++) {
+            u16 vtxNum = *ptr8++;
+            auto prim = static_cast<GXPrimitive>(*ptr8++);
+
+            GXBegin(prim, GX_VTXFMT0, vtxNum);
+            for (u16 j = 0; j < vtxNum; j++) {
+                GXPosition1x8(*ptr8++);
+                GXNormal1x8(*ptr8++);
+
+                if (!skipTxc) {
+                    GXTexCoord1x8(*ptr8++);
+                }
+            }
+            GXEnd();
+        }
+
+        shape->dlSize = GXEndDisplayList();
+    }
+
+    RFLiFree(res);
+}
+
+void RFLiInitTexRes(GXTexObj* texObj, u32 part, u16 file, void* buffer) {
+    using namespace rvlfacelib;
+
+    u32 texSize = RFLiGetShpTexSize(part, file);
+    auto* tex = static_cast<Texture*>(RFLiAlloc32(texSize));
+    if (!tex) {
+        return;
+    }
+
+    RFLiLoadShpTexture(part, file, tex);
+
+    auto partType = static_cast<PartsShpTex>(part);
+    switch (partType) {
+    case PartsShpTex::Face:
+        texSize = tex->height * tex->width * 2;
+        break;
+    case PartsShpTex::Cap:
+    case PartsShpTex::Noseline:
+        texSize = tex->height * tex->width / 2;
+        break;
+    case PartsShpTex::Glass:
+        texSize = tex->height * tex->width;
+        break;
+    default:
+        texSize = 0;
+        break;
+    }
+
+    if (texSize > 0) {
+        std::memcpy(buffer, getTexImage(tex), texSize);
+        GXInitTexObj(texObj, buffer, tex->width, tex->height,
+                     static_cast<GXTexFmt>(tex->format),
+                     static_cast<GXTexWrapMode>(tex->wrapS),
+                     static_cast<GXTexWrapMode>(tex->wrapT),
+                     FALSE);
+        GXInitTexObjLOD(texObj, GX_LINEAR, GX_LINEAR, 0.0f, 0.0f, 0.0f, FALSE, FALSE, GX_ANISO_1);
+    }
+
+    RFLiFree(tex);
+}
+
+void RFLiInitCharModelRes(void* resPtr, const rvlfacelib::CharInfo* info) {
+    using namespace rvlfacelib;
+
+    auto* res = static_cast<CharModelRes*>(resPtr);
+
+    Vec noseTrans;
+    Vec beardTrans;
+    Vec hairTrans;
+
+    // GXSetMisc(GX_MT_XF_FLUSH, 0);
+    // GXSetMisc(GX_MT_DL_SAVE_CONTEXT, 1);
+
+    // Faceline shape
+    {
+        ShapeRes arg{};
+        arg.part = PartsShp::Faceline;
+        arg.file = info->facelineType;
+        arg.vtxPosBuf = res->faceVtxPos;
+        arg.vtxNrmBuf = res->faceVtxNrm;
+        arg.vtxTxcBuf = res->faceVtxTxc;
+        arg.dlBuf = res->faceDl;
+        arg.vtxPosBufSize = NUM_VTX_POS(sizeof(res->faceVtxPos));
+        arg.vtxNrmBufSize = NUM_VTX_NRM(sizeof(res->faceVtxNrm));
+        arg.vtxTxcBufSize = NUM_VTX_TXC(sizeof(res->faceVtxTxc));
+        arg.dlBufSize = sizeof(res->faceDl);
+        arg.noseTrans = &noseTrans;
+        arg.beardTrans = &beardTrans;
+        arg.hairTrans = &hairTrans;
+        arg.flipX = FALSE;
+        arg.transform = FALSE;
+        RFLiInitShapeRes(&arg);
+
+        res->faceDlSize = arg.dlSize;
+    }
+
+    // Cap shape
+    {
+        ShapeRes arg{};
+        arg.part = PartsShp::Cap;
+        arg.file = info->hairType;
+        arg.vtxPosBuf = res->capVtxPos;
+        arg.vtxNrmBuf = res->capVtxNrm;
+        arg.vtxTxcBuf = res->capVtxTxc;
+        arg.dlBuf = res->capDl;
+        arg.vtxPosBufSize = NUM_VTX_POS(sizeof(res->capVtxPos));
+        arg.vtxNrmBufSize = NUM_VTX_NRM(sizeof(res->capVtxNrm));
+        arg.vtxTxcBufSize = NUM_VTX_TXC(sizeof(res->capVtxTxc));
+        arg.dlBufSize = sizeof(res->capDl);
+        arg.flipX = info->hairFlip ? TRUE : FALSE;
+        arg.transform = TRUE;
+        arg.posScale = 1.0f;
+        arg.posTrans = &hairTrans;
+        RFLiInitShapeRes(&arg);
+
+        res->capDlSize = arg.dlSize;
+
+        res->hairVtxPos = reinterpret_cast<s16*>(reinterpret_cast<u8*>(res->capVtxPos) +
+                         (arg.numVtxPos * 4 - arg.numVtxPos) * 2);
+        res->hairVtxNrm = reinterpret_cast<s16*>(reinterpret_cast<u8*>(res->capVtxNrm) +
+                         (arg.numVtxNrm * 4 - arg.numVtxNrm) * 2);
+
+        res->hairDl = res->noseDl + roundUp(arg.dlSize, 32) + offsetof(CharModelRes, capDl);
+    }
+
+    // Hair shape
+    {
+        ShapeRes arg{};
+        arg.part = PartsShp::Hair;
+        arg.file = info->hairType;
+        arg.vtxPosBuf = res->hairVtxPos;
+        arg.vtxNrmBuf = res->hairVtxNrm;
+        arg.dlBuf = res->hairDl;
+
+        arg.vtxPosBufSize = NUM_VTX_POS(sizeof(res->capVtxPos)) -
+            ((reinterpret_cast<uintptr_t>(res->hairVtxPos) - reinterpret_cast<uintptr_t>(res->capVtxPos)) /
+             VTX_COORD_SIZE) / VTX_COORDS_IN_POS;
+
+        arg.vtxNrmBufSize = NUM_VTX_NRM(sizeof(res->capVtxNrm)) -
+            ((reinterpret_cast<uintptr_t>(res->hairVtxNrm) - reinterpret_cast<uintptr_t>(res->capVtxNrm)) /
+             VTX_COORD_SIZE) / VTX_COORDS_IN_NRM;
+
+        arg.dlBufSize = sizeof(res->capDl) -
+            (reinterpret_cast<uintptr_t>(res->hairDl) - reinterpret_cast<uintptr_t>(res->capDl));
+
+        arg.flipX = info->hairFlip ? TRUE : FALSE;
+        arg.transform = TRUE;
+        arg.posScale = 1.0f;
+        arg.posTrans = &hairTrans;
+        RFLiInitShapeRes(&arg);
+
+        res->hairDlSize = arg.dlSize;
+
+        res->foreheadVtxPos = reinterpret_cast<s16*>(reinterpret_cast<u8*>(res->hairVtxPos) +
+                             (arg.numVtxPos * 4 - arg.numVtxPos) * 2);
+        res->foreheadVtxNrm = reinterpret_cast<s16*>(reinterpret_cast<u8*>(res->hairVtxNrm) +
+                             (arg.numVtxNrm * 4 - arg.numVtxNrm) * 2);
+
+        res->foreheadDl = res->hairDl + roundUp(arg.dlSize, 32);
+        res->flipHair = info->hairFlip ? TRUE : FALSE;
+    }
+
+    // Forehead shape
+    {
+        ShapeRes arg{};
+        arg.part = PartsShp::Forehead;
+        arg.file = info->hairType;
+        arg.vtxPosBuf = res->foreheadVtxPos;
+        arg.vtxNrmBuf = res->foreheadVtxNrm;
+        arg.dlBuf = res->foreheadDl;
+
+        arg.vtxPosBufSize = NUM_VTX_POS(sizeof(res->capVtxPos)) -
+            ((reinterpret_cast<uintptr_t>(res->foreheadVtxPos) - reinterpret_cast<uintptr_t>(res->capVtxPos)) /
+             VTX_COORD_SIZE) / VTX_COORDS_IN_POS;
+
+        arg.vtxNrmBufSize = NUM_VTX_NRM(sizeof(res->capVtxNrm)) -
+            ((reinterpret_cast<uintptr_t>(res->foreheadVtxNrm) - reinterpret_cast<uintptr_t>(res->capVtxNrm)) /
+             VTX_COORD_SIZE) / VTX_COORDS_IN_NRM;
+
+        arg.dlBufSize = sizeof(res->capDl) -
+            (reinterpret_cast<uintptr_t>(res->foreheadDl) - reinterpret_cast<uintptr_t>(res->capDl));
+
+        arg.flipX = info->hairFlip ? TRUE : FALSE;
+        arg.transform = TRUE;
+        arg.posScale = 1.0f;
+        arg.posTrans = &hairTrans;
+        RFLiInitShapeRes(&arg);
+
+        res->foreheadDlSize = arg.dlSize;
+    }
+
+    // Beard shape
+    {
+        ShapeRes arg{};
+        arg.part = PartsShp::Beard;
+        arg.file = info->beardType;
+        arg.vtxPosBuf = res->beardVtxPos;
+        arg.vtxNrmBuf = res->beardVtxNrm;
+        arg.dlBuf = res->beardDl;
+        arg.vtxPosBufSize = NUM_VTX_POS(sizeof(res->beardVtxPos));
+        arg.vtxNrmBufSize = NUM_VTX_NRM(sizeof(res->beardVtxNrm));
+        arg.dlBufSize = sizeof(res->beardDl);
+        arg.flipX = FALSE;
+        arg.transform = TRUE;
+        arg.posScale = 1.0f;
+        arg.posTrans = &beardTrans;
+        RFLiInitShapeRes(&arg);
+
+        res->beardDlSize = arg.dlSize;
+    }
+
+    // Nose and noseline shapes
+    {
+        f32 scale = 0.4f + 0.175f * info->noseScale;
+        Vec trans;
+        trans.x = noseTrans.x;
+        trans.y = noseTrans.y + -1.5f * (info->noseY - 8);
+        trans.z = noseTrans.z;
+
+        // Nose shape
+        {
+            ShapeRes arg{};
+            arg.part = PartsShp::Nose;
+            arg.file = info->noseType;
+            arg.vtxPosBuf = res->noseVtxPos;
+            arg.vtxNrmBuf = res->noseVtxNrm;
+            arg.dlBuf = res->noseDl;
+            arg.vtxPosBufSize = NUM_VTX_POS(sizeof(res->noseVtxPos));
+            arg.vtxNrmBufSize = NUM_VTX_NRM(sizeof(res->noseVtxNrm));
+            arg.dlBufSize = sizeof(res->noseDl);
+            arg.flipX = FALSE;
+            arg.transform = TRUE;
+            arg.posScale = scale;
+            arg.posTrans = &trans;
+            RFLiInitShapeRes(&arg);
+
+            res->noseDlSize = arg.dlSize;
+        }
+
+        // Noseline shape
+        {
+            ShapeRes arg{};
+            arg.part = PartsShp::Noseline;
+            arg.file = info->noseType;
+            arg.vtxPosBuf = res->noselineVtxPos;
+            arg.vtxNrmBuf = res->noselineVtxNrm;
+            arg.vtxTxcBuf = res->noselineVtxTxc;
+            arg.dlBuf = res->noselineDl;
+            arg.vtxPosBufSize = NUM_VTX_POS(sizeof(res->noselineVtxPos));
+            arg.vtxNrmBufSize = NUM_VTX_NRM(sizeof(res->noselineVtxNrm));
+            arg.vtxTxcBufSize = NUM_VTX_TXC(sizeof(res->noselineVtxTxc));
+            arg.dlBufSize = sizeof(res->noselineDl);
+            arg.flipX = FALSE;
+            arg.transform = TRUE;
+            arg.posScale = scale;
+            arg.posTrans = &trans;
+            RFLiInitShapeRes(&arg);
+
+            res->noselineDlSize = arg.dlSize;
+        }
+    }
+
+    // Mask shape
+    {
+        ShapeRes arg{};
+        arg.part = PartsShp::Mask;
+        arg.file = info->facelineType;
+        arg.vtxPosBuf = res->maskVtxPos;
+        arg.vtxNrmBuf = res->maskVtxNrm;
+        arg.vtxTxcBuf = res->maskVtxTxc;
+        arg.dlBuf = res->maskDl;
+        arg.vtxPosBufSize = NUM_VTX_POS(sizeof(res->maskVtxPos));
+        arg.vtxNrmBufSize = NUM_VTX_NRM(sizeof(res->maskVtxNrm));
+        arg.vtxTxcBufSize = NUM_VTX_TXC(sizeof(res->maskVtxTxc));
+        arg.dlBufSize = sizeof(res->maskDl);
+        arg.flipX = FALSE;
+        arg.transform = FALSE;
+        RFLiInitShapeRes(&arg);
+
+        res->maskDlSize = arg.dlSize;
+    }
+
+    // Glasses shape
+    {
+        f32 scale = 0.15f * info->glassScale + 0.4f;
+        Vec trans;
+        trans.x = noseTrans.x;
+        trans.y = 5.0f + noseTrans.y + -1.5f * (info->glassY - 11);
+        trans.z = 2.0f + noseTrans.z;
+
+        ShapeRes arg{};
+        arg.part = PartsShp::Glass;
+        arg.file = 0;
+        arg.vtxPosBuf = res->glassesVtxPos;
+        arg.vtxNrmBuf = res->glassesVtxNrm;
+        arg.vtxTxcBuf = res->glassesVtxTxc;
+        arg.dlBuf = res->glassesDl;
+        arg.vtxPosBufSize = NUM_VTX_POS(sizeof(res->glassesVtxPos));
+        arg.vtxNrmBufSize = NUM_VTX_NRM(sizeof(res->glassesVtxNrm));
+        arg.vtxTxcBufSize = NUM_VTX_TXC(sizeof(res->glassesVtxTxc));
+        arg.dlBufSize = sizeof(res->glassesDl);
+        arg.flipX = FALSE;
+        arg.transform = TRUE;
+        arg.posScale = scale;
+        arg.posTrans = &trans;
+        RFLiInitShapeRes(&arg);
+
+        res->glassesDlSize = arg.dlSize;
+    }
+
+    // Initialize textures
+    RFLiInitTexRes(&res->faceTexObj, static_cast<u32>(PartsShpTex::Face),
+                   info->facelineTexture, res->faceTex);
+
+    if (res->capDlSize > 0) {
+        RFLiInitTexRes(&res->capTexObj, static_cast<u32>(PartsShpTex::Cap),
+                       info->hairType, res->capTex);
+    }
+
+    if (res->noselineDlSize > 0) {
+        RFLiInitTexRes(&res->noseTexObj, static_cast<u32>(PartsShpTex::Noseline),
+                       info->noseType, res->noseTex);
+    }
+
+    RFLiInitTexRes(&res->glassesTexObj, static_cast<u32>(PartsShpTex::Glass),
+                   info->glassType, res->glassesTex);
+
+    // Set colors
+    res->facelineColor = info->facelineColor;
+    res->hairColor = info->hairColor;
+    res->beardColor = info->beardColor;
+    res->glassesColor = info->glassColor;
+    res->favoriteColor = info->personalColor;
 }
 
 }

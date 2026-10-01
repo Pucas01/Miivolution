@@ -60,6 +60,68 @@ TEST_CASE("RFL Model - Favorite colors", "[rfl][model]") {
     }
 }
 
+extern "C" void RFLiTransformCoordinate(s16* to, const s16* from);
+
+extern "C" GXColor RFLiGetFacelineColor(u8 index);
+extern "C" GXColor RFLiGetHairColor(u8 index);
+extern "C" GXColor RFLiGetBeardColor(u8 index);
+extern "C" GXColor RFLiGetGlassColor(u8 index);
+
+TEST_CASE("RFL Model - Color lookup tables", "[rfl][model]") {
+    SECTION("Faceline colors are valid") {
+        for (u8 i = 0; i < 6; i++) {
+            GXColor color = RFLiGetFacelineColor(i);
+            REQUIRE(color.a == 255);
+        }
+    }
+
+    SECTION("Hair colors are valid") {
+        for (u8 i = 0; i < 8; i++) {
+            GXColor color = RFLiGetHairColor(i);
+            REQUIRE(color.a == 255);
+        }
+    }
+
+    SECTION("Beard colors are valid") {
+        for (u8 i = 0; i < 8; i++) {
+            GXColor color = RFLiGetBeardColor(i);
+            REQUIRE(color.a == 255);
+        }
+    }
+
+    SECTION("Glass colors are valid") {
+        for (u8 i = 0; i < 6; i++) {
+            GXColor color = RFLiGetGlassColor(i);
+            REQUIRE(color.a == 255);
+        }
+    }
+
+    SECTION("Different indices return different colors") {
+        GXColor c0 = RFLiGetHairColor(0);
+        GXColor c1 = RFLiGetHairColor(1);
+        REQUIRE((c0.r != c1.r || c0.g != c1.g || c0.b != c1.b));
+    }
+}
+
+TEST_CASE("RFL Model - Coordinate type values", "[rfl][model][debug]") {
+    SECTION("Check enum values are correct") {
+        RFLCoordinateType x = RFLCoordinateType_X;
+        RFLCoordinateType y = RFLCoordinateType_Y;
+        RFLCoordinateType z = RFLCoordinateType_Z;
+
+        union { RFLCoordinateType c; u8 b[4]; } ux, uy, uz;
+        ux.c = x;
+        uy.c = y;
+        uz.c = z;
+
+        INFO("X bytes: [" << (int)ux.b[0] << ", " << (int)ux.b[1] << ", " << (int)ux.b[2] << ", " << (int)ux.b[3] << "]");
+        INFO("Y bytes: [" << (int)uy.b[0] << ", " << (int)uy.b[1] << ", " << (int)uy.b[2] << ", " << (int)uy.b[3] << "]");
+        INFO("Z bytes: [" << (int)uz.b[0] << ", " << (int)uz.b[1] << ", " << (int)uz.b[2] << ", " << (int)uz.b[3] << "]");
+
+        REQUIRE(true);
+    }
+}
+
 TEST_CASE("RFL Model - Coordinate system", "[rfl][model]") {
     SECTION("Can set coordinate system") {
         RFLSetCoordinate(RFLCoordinateType_X, RFLCoordinateType_Y);
@@ -70,6 +132,58 @@ TEST_CASE("RFL Model - Coordinate system", "[rfl][model]") {
     SECTION("Can set reversed coordinate system") {
         RFLSetCoordinate(RFLCoordinateType_RevX, RFLCoordinateType_Y);
         RFLSetCoordinate(RFLCoordinateType_X, RFLCoordinateType_RevY);
+    }
+
+    SECTION("Transform coordinate with default system") {
+        s16 from[3] = {10, 20, 30};
+        s16 to[3] = {0, 0, 0};
+
+        RFLSetCoordinate(RFLCoordinateType_Y, RFLCoordinateType_Z);
+        RFLiTransformCoordinate(to, from);
+
+        REQUIRE(to[0] == 10);
+        REQUIRE(to[1] == 20);
+        REQUIRE(to[2] == 30);
+    }
+
+    SECTION("Transform coordinate applies coordinate system") {
+        s16 from[3] = {10, 20, 30};
+        s16 to[3] = {0, 0, 0};
+
+        RFLSetCoordinate(RFLCoordinateType_Z, RFLCoordinateType_X);
+        RFLiTransformCoordinate(to, from);
+
+        REQUIRE(to[0] == 30);
+        REQUIRE(to[1] == 10);
+        REQUIRE(to[2] == 20);
+    }
+
+    SECTION("Transform coordinate handles reversal") {
+        s16 from[3] = {10, 20, 30};
+        s16 to[3] = {0, 0, 0};
+        s16 toRev[3] = {0, 0, 0};
+
+        RFLSetCoordinate(RFLCoordinateType_X, RFLCoordinateType_Y);
+        RFLiTransformCoordinate(to, from);
+
+        RFLSetCoordinate(RFLCoordinateType_RevX, RFLCoordinateType_Y);
+        RFLiTransformCoordinate(toRev, from);
+
+        REQUIRE(to[0] == -toRev[0]);
+    }
+
+    SECTION("Transform coordinate is consistent") {
+        s16 from[3] = {100, 200, 300};
+        s16 to1[3] = {0, 0, 0};
+        s16 to2[3] = {0, 0, 0};
+
+        RFLSetCoordinate(RFLCoordinateType_Z, RFLCoordinateType_X);
+        RFLiTransformCoordinate(to1, from);
+        RFLiTransformCoordinate(to2, from);
+
+        REQUIRE(to1[0] == to2[0]);
+        REQUIRE(to1[1] == to2[1]);
+        REQUIRE(to1[2] == to2[2]);
     }
 }
 

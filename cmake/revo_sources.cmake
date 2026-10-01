@@ -1,5 +1,5 @@
-set(REVO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/src/RevoMii")
+set(REVO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/src/Miivolution")
 
-list(APPEND REVOMII_SOURCES
-    ${REVO_ROOT}/revomii.cpp
+list(APPEND MIIVOLUTION_SOURCES
+    ${REVO_ROOT}/miivolution.cpp
 )
