@@ -1,7 +1,5 @@
 # RevoMii Tests
 
-Test-driven development setup using Catch2.
-
 ## Building Tests
 
 ```bash
