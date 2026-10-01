@@ -191,6 +191,12 @@ if(MIIVOLUTION_RAINFALL_TARGETS)
     endforeach()
 endif()
 
+if(NOT MSVC)
+    foreach(_t RevoInternal RVLFaceLib Miivolution)
+        target_compile_options(${_t} PUBLIC -fshort-wchar)
+    endforeach()
+endif()
+
 # =============================================================================
 # Tests
 # =============================================================================

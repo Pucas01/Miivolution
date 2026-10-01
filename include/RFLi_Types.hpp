@@ -212,6 +212,8 @@ typedef struct RFLiCharData {
 void RFLiConvertRaw2Info(const RFLiCharData* data, RFLiCharInfo* out);
 void RFLiGetDefaultData(RFLiCharInfo* info, u16 index);
 
+constexpr u16 RFLiPlaceholderOfficialIndex = 0;
+
 typedef struct RFLMiddleDB RFLMiddleDB;
 RFLErrcode RFLiPickupCharInfo(void* info, RFLDataSource source, RFLMiddleDB* db, u16 index);
 

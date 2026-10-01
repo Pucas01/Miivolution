@@ -3,6 +3,10 @@
 
 #include "RVLFaceLib/internal.hpp"
 #include "model_internal.hpp"
+#include "RFLi_Types.hpp"
+#include "RVLFaceLib/resource.hpp"
+#include <cmath>
+#include <vector>
 #include "RevoInternal/endian.hpp"
 
 extern "C" {
@@ -326,7 +330,7 @@ void RFLSetCoordinate(RFLCoordinateType u, RFLCoordinateType f) {
 
 u32 RFLGetModelBufferSize(RFLResolution res, u32 exprFlags) {
 
-    constexpr u32 GX_TEXOBJ_SIZE = 32;
+    constexpr u32 GX_TEXOBJ_SIZE = sizeof(GXTexObj);
 
     const u32 exprNum = countExpressions(exprFlags);
     const u32 texSize = getMaskBufSize(res);
@@ -335,6 +339,300 @@ u32 RFLGetModelBufferSize(RFLResolution res, u32 exprFlags) {
            roundUp(exprNum * GX_TEXOBJ_SIZE, 32) +
            roundUp(sizeof(CharModelRes), 32) +
            roundUp(texSize * exprNum, 32);
+}
+
+
+namespace {
+
+struct Rgba {
+    float r, g, b, a;
+};
+
+struct PartTex {
+    int w = 0;
+    int h = 0;
+    std::vector<Rgba> px;
+};
+
+bool decodePartTex(rvlfacelib::ArcID arc, u16 file, PartTex& out) {
+    u32 size = 0;
+    const u8* f = rvlfacelib::getResourceLoader().getFile(arc, file, &size);
+    if (!f || size < 32) {
+        return false;
+    }
+    u8 fmt = f[0];
+    out.w = revointernal::readBE16(f + 2);
+    out.h = revointernal::readBE16(f + 4);
+    u32 ofs = revointernal::readBE<u32>(f + 28);
+    const u8* d = f + ofs;
+    out.px.assign(out.w * out.h, Rgba{0, 0, 0, 0});
+    u32 pos = 0;
+    int bw = 4, bh = 4;
+    if (fmt == 0) { bw = 8; bh = 8; }
+    else if (fmt == 2) { bw = 8; bh = 4; }
+    else if (fmt != 5) return false;
+    for (int by = 0; by < out.h; by += bh) {
+        for (int bx = 0; bx < out.w; bx += bw) {
+            for (int y = 0; y < bh; y++) {
+                for (int x = 0; x < bw; x++) {
+                    Rgba c{0, 0, 0, 0};
+                    if (fmt == 5) {
+                        u16 v = revointernal::readBE16(d + pos);
+                        pos += 2;
+                        if (v & 0x8000) {
+                            c = {((v >> 10) & 31) / 31.0f, ((v >> 5) & 31) / 31.0f, (v & 31) / 31.0f, 1.0f};
+                        } else {
+                            c = {((v >> 8) & 15) / 15.0f, ((v >> 4) & 15) / 15.0f, (v & 15) / 15.0f, ((v >> 12) & 7) / 7.0f};
+                        }
+                    } else if (fmt == 0) {
+                        u8 b = d[pos + (y * bw + x) / 2];
+                        float i = ((x & 1) ? (b & 15) : (b >> 4)) / 15.0f;
+                        c = {i, i, i, i};
+                    } else {
+                        u8 b = d[pos++];
+                        float i = (b & 15) / 15.0f;
+                        float a = (b >> 4) / 15.0f;
+                        c = {i, i, i, a};
+                    }
+                    if (bx + x < out.w && by + y < out.h) {
+                        out.px[(by + y) * out.w + bx + x] = c;
+                    }
+                }
+            }
+            if (fmt == 0) pos += 32;
+        }
+    }
+    return true;
+}
+
+Rgba samplePart(const PartTex& t, float x, float y) {
+    x -= 0.5f;
+    y -= 0.5f;
+    int x0 = (int)std::floor(x), y0 = (int)std::floor(y);
+    float fx = x - x0, fy = y - y0;
+    auto at = [&](int xx, int yy) {
+        if (xx < 0 || yy < 0 || xx >= t.w || yy >= t.h) return Rgba{0, 0, 0, 0};
+        return t.px[yy * t.w + xx];
+    };
+    Rgba c00 = at(x0, y0), c10 = at(x0 + 1, y0), c01 = at(x0, y0 + 1), c11 = at(x0 + 1, y0 + 1);
+    auto mix = [&](float a, float b, float c, float d) {
+        return (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy;
+    };
+    return {mix(c00.r, c10.r, c01.r, c11.r), mix(c00.g, c10.g, c01.g, c11.g), mix(c00.b, c10.b, c01.b, c11.b), mix(c00.a, c10.a, c01.a, c11.a)};
+}
+
+enum class TintMode { Channels, Intensity };
+
+struct MaskCanvas {
+    int res;
+    std::vector<Rgba> px;
+};
+
+constexpr float kScaleX = 0.88961464f;
+constexpr float kScaleY = 0.9276675f;
+
+enum Origin { OriginCenter = 0, OriginRight = 1, OriginLeft = 2 };
+
+void drawPart(MaskCanvas& cv, const PartTex& t, float x, float y, float w, float h, float angleDeg, Origin origin, TintMode mode, const float c0[3],
+              const float c1[3], const float c2[3]) {
+    float baseX = origin == OriginCenter ? -0.5f : (origin == OriginRight ? -1.0f : 0.0f);
+    float ext = (w + h) * kScaleX + 4.0f;
+    int x0 = std::max(0, (int)(x - ext)), x1 = std::min(cv.res - 1, (int)(x + ext));
+    int y0 = std::max(0, (int)(y - ext)), y1 = std::min(cv.res - 1, (int)(y + ext));
+    float rad = angleDeg * 3.14159265f / 180.0f;
+    float cs = std::cos(rad), sn = std::sin(rad);
+    for (int py = y0; py <= y1; py++) {
+        for (int px = x0; px <= x1; px++) {
+            float dx = (px + 0.5f - x) / kScaleX;
+            float dy = (py + 0.5f - y) / kScaleY;
+            float rx = dx * cs + dy * sn;
+            float ry = -dx * sn + dy * cs;
+            float qx = rx / w;
+            float qy = ry / h;
+            if (qx < baseX || qx > baseX + 1.0f || qy < -0.5f || qy > 0.5f) continue;
+            float u = origin == OriginLeft ? 1.0f - qx : qx - baseX;
+            float v = qy + 0.5f;
+            Rgba s = samplePart(t, u * t.w, v * t.h);
+            float sa = s.a;
+            if (sa <= 0.0f) continue;
+            float col[3];
+            if (mode == TintMode::Channels) {
+                for (int k = 0; k < 3; k++) {
+                    col[k] = s.r * c0[k] + s.b * c1[k] + s.g * c2[k];
+                }
+            } else {
+                for (int k = 0; k < 3; k++) col[k] = c0[k];
+            }
+            Rgba& d = cv.px[py * cv.res + px];
+            float oa = sa + d.a * (1 - sa);
+            d.r = (col[0] * sa + d.r * d.a * (1 - sa)) / oa;
+            d.g = (col[1] * sa + d.g * d.a * (1 - sa)) / oa;
+            d.b = (col[2] * sa + d.b * d.a * (1 - sa)) / oa;
+            d.a = oa;
+        }
+    }
+}
+
+void toF(GXColor c, float out[3]) {
+    out[0] = c.r / 255.0f;
+    out[1] = c.g / 255.0f;
+    out[2] = c.b / 255.0f;
+}
+
+constexpr u8 kEyeRotOffset[50] = {29, 28, 28, 28, 29, 28, 28, 28, 29, 28, 28, 28, 28, 29, 29, 28, 28, 28, 29, 29, 28, 29, 28, 29, 29,
+                                  28, 29, 28, 28, 29, 28, 28, 28, 29, 29, 29, 28, 28, 29, 29, 29, 28, 28, 29, 29, 29, 29, 29, 28, 28};
+constexpr u8 kEyebrowRotOffset[24] = {26, 26, 27, 25, 26, 25, 26, 25, 28, 25, 26, 24, 27, 27, 26, 26, 25, 25, 26, 26, 27, 26, 25, 27};
+constexpr GXColor kEyeColor1[6] = {{0, 0, 0, 255}, {124, 128, 128, 255}, {112, 80, 64, 255}, {112, 110, 64, 255}, {88, 104, 184, 255}, {72, 128, 104, 255}};
+constexpr GXColor kMouthColor0[3] = {{190, 78, 38, 255}, {216, 48, 40, 255}, {207, 68, 71, 255}};
+constexpr GXColor kMouthColor1[3] = {{113, 42, 4, 255}, {120, 21, 16, 255}, {126, 37, 40, 255}};
+constexpr GXColor kMoleColor = {18, 15, 15, 255};
+
+float rot2ang(int rotate) {
+    return (360.0f / 32.0f) * (float)(rotate % 32);
+}
+
+float scale2dim(int scale) {
+    return 1.0f + 0.4f * scale;
+}
+
+void composeMask(u8* dst, int res, const RFLiCharInfo& ci, bool blink) {
+    using rvlfacelib::ArcID;
+    MaskCanvas cv{res, std::vector<Rgba>(res * res, Rgba{0, 0, 0, 0})};
+    const float unit = res / 64.0f;
+    const float white[3] = {1, 1, 1};
+
+    int eyeType = blink ? 48 : ci.eye.type;
+    int eyeRotate = ci.eye.rotate;
+    if (blink) {
+        int change = (int)kEyeRotOffset[ci.eye.type < 50 ? ci.eye.type : 0] - (int)kEyeRotOffset[48];
+        eyeRotate = std::min(7, std::max(0, eyeRotate + change));
+    }
+    int eyeY = ci.eye.y;
+    int browY = ci.eyebrow.y;
+
+    PartTex t;
+
+    float eyeX = kScaleX * ci.eye.x;
+    float eyeYp = 18.451525f + 1.1600001f * kScaleY * eyeY;
+    float eyeW = (342.0f / 64.0f) * scale2dim(ci.eye.scale) * unit;
+    float eyeH = (288.0f / 64.0f) * scale2dim(ci.eye.scale) * unit;
+    float eyeA = rot2ang(eyeRotate + kEyeRotOffset[eyeType < 50 ? eyeType : 0]);
+
+    float browX = kScaleX * ci.eyebrow.x;
+    float browYp = 16.549807f + 1.1600001f * kScaleY * browY;
+    float browW = (324.0f / 64.0f) * scale2dim(ci.eyebrow.scale) * unit;
+    float browH = (288.0f / 64.0f) * scale2dim(ci.eyebrow.scale) * unit;
+    float browA = rot2ang(ci.eyebrow.rotate + kEyebrowRotOffset[ci.eyebrow.type < 24 ? ci.eyebrow.type : 0]);
+
+    float mouthYp = 29.25885f + 1.1600001f * kScaleY * ci.mouth.y;
+    float mouthW = (396.0f / 64.0f) * scale2dim(ci.mouth.scale) * unit;
+    float mouthH = (288.0f / 64.0f) * scale2dim(ci.mouth.scale) * unit;
+
+    float mustYp = 31.763554f + 1.1600001f * kScaleY * ci.beard.y;
+    float mustW = (288.0f / 64.0f) * scale2dim(ci.beard.scale) * unit;
+    float mustH = (576.0f / 64.0f) * scale2dim(ci.beard.scale) * unit;
+
+    float moleX = 17.766165f + 2.0f * kScaleX * ci.mole.x;
+    float moleY = 17.95986f + 1.1600001f * kScaleY * ci.mole.y;
+    float moleSz = scale2dim(ci.mole.scale) * unit;
+
+    if (ci.beard.mustache > 0 && decodePartTex(ArcID::TexMustache, ci.beard.mustache, t)) {
+        float col[3];
+        toF(getBeardColor(ci.beard.color), col);
+        drawPart(cv, t, 32 * unit, mustYp * unit, mustW, mustH, 0, OriginRight, TintMode::Intensity, col, col, col);
+        drawPart(cv, t, 32 * unit, mustYp * unit, mustW, mustH, 0, OriginLeft, TintMode::Intensity, col, col, col);
+    }
+
+    if (decodePartTex(ArcID::TexMouth, ci.mouth.type, t)) {
+        float c0[3], c1[3];
+        toF(kMouthColor0[ci.mouth.color < 3 ? ci.mouth.color : 0], c0);
+        toF(kMouthColor1[ci.mouth.color < 3 ? ci.mouth.color : 0], c1);
+        drawPart(cv, t, 32 * unit, mouthYp * unit, mouthW, mouthH, 0, OriginCenter, TintMode::Channels, c0, c1, white);
+    }
+
+    if (decodePartTex(ArcID::TexEyebrow, ci.eyebrow.type, t)) {
+        float col[3];
+        toF(getHairColor(ci.eyebrow.color), col);
+        drawPart(cv, t, unit * (32.0f - browX), browYp * unit, browW, browH, browA, OriginRight, TintMode::Intensity, col, col, col);
+        drawPart(cv, t, unit * (32.0f + browX), browYp * unit, browW, browH, 360.0f - browA, OriginLeft, TintMode::Intensity, col, col, col);
+    }
+
+    if (decodePartTex(ArcID::TexEye, eyeType, t)) {
+        float c0[3], c1[3];
+        GXColor g0 = eyeType == 9 ? GXColor{255, 130, 0, 255} : (eyeType == 20 ? GXColor{0, 255, 255, 255} : GXColor{0, 0, 0, 255});
+        toF(g0, c0);
+        toF(kEyeColor1[ci.eye.color < 6 ? ci.eye.color : 0], c1);
+        drawPart(cv, t, unit * (32.0f - eyeX), eyeYp * unit, eyeW, eyeH, eyeA, OriginRight, TintMode::Channels, c0, c1, white);
+        drawPart(cv, t, unit * (32.0f + eyeX), eyeYp * unit, eyeW, eyeH, 360.0f - eyeA, OriginLeft, TintMode::Channels, c0, c1, white);
+    }
+
+    if (ci.mole.type && decodePartTex(ArcID::TexMole, 0, t)) {
+        float col[3];
+        toF(kMoleColor, col);
+        drawPart(cv, t, moleX * unit, moleY * unit, moleSz, moleSz, 0, OriginCenter, TintMode::Intensity, col, col, col);
+    }
+
+    for (int by = 0; by < res; by += 4) {
+        for (int bx = 0; bx < res; bx += 4) {
+            for (int y = 0; y < 4; y++) {
+                for (int x = 0; x < 4; x++) {
+                    const Rgba& c = cv.px[(by + y) * res + bx + x];
+                    u16 v;
+                    auto q = [](float f, int n) { return (u16)std::lround(std::min(1.0f, std::max(0.0f, f)) * n); };
+                    if (c.a >= 0.97f) {
+                        v = 0x8000 | (q(c.r, 31) << 10) | (q(c.g, 31) << 5) | q(c.b, 31);
+                    } else {
+                        v = (q(c.a, 7) << 12) | (q(c.r, 15) << 8) | (q(c.g, 15) << 4) | q(c.b, 15);
+                    }
+                    dst[0] = v >> 8;
+                    dst[1] = v & 0xFF;
+                    dst += 2;
+                }
+            }
+        }
+    }
+}
+
+void convertCharInfo(const RFLiCharInfo& in, rvlfacelib::CharInfo* out) {
+    std::memset(out, 0, sizeof(*out));
+    out->facelineType = in.faceline.type;
+    out->facelineColor = in.faceline.color;
+    out->facelineTexture = in.faceline.texture;
+    out->hairType = in.hair.type;
+    out->hairColor = in.hair.color;
+    out->hairFlip = in.hair.flip;
+    out->noseType = in.nose.type;
+    out->noseScale = in.nose.scale;
+    out->noseY = in.nose.y;
+    out->beardType = in.beard.type;
+    out->beardColor = in.beard.color;
+    out->beardScale = in.beard.scale;
+    out->beardY = in.beard.y;
+    out->beardMustache = in.beard.mustache;
+    out->glassType = in.glass.type;
+    out->glassColor = in.glass.color;
+    out->glassScale = in.glass.scale;
+    out->glassY = in.glass.y;
+    out->personalColor = in.personal.color;
+}
+
+void bindArrays(const s16* pos, const s16* nrm, const s16* txc) {
+    GXSetArray(GX_VA_POS, pos, 6);
+    GXSetArray(GX_VA_NRM, nrm, 6);
+    if (txc) {
+        GXSetArray(GX_VA_TEX0, txc, 4);
+        GXSetVtxDesc(GX_VA_TEX0, GX_INDEX8);
+    } else {
+        GXSetVtxDesc(GX_VA_TEX0, GX_NONE);
+    }
+}
+
+void callDl(const u8* dl, u32 size, const s16* pos, const s16* nrm, const s16* txc) {
+    if (!dl || size == 0) return;
+    bindArrays(pos, nrm, txc);
+    GXCallDisplayList(dl, size);
+}
+
 }
 
 extern "C" RFLErrcode RFLiPickupCharInfo(void* info, RFLDataSource source, RFLMiddleDB* db, u16 index);
@@ -350,7 +648,7 @@ RFLErrcode RFLInitCharModel(RFLCharModel* model, RFLDataSource src,
         return RFLErrcode_NotAvailable;
     }
 
-    u8 charInfoBuf[96];
+    alignas(16) u8 charInfoBuf[sizeof(RFLiCharInfo) + 16];
     RFLErrcode err = RFLiPickupCharInfo(charInfoBuf, src, db, id);
     if (err != RFLErrcode_Success) {
         return err;
@@ -383,6 +681,28 @@ RFLErrcode RFLInitCharModel(RFLCharModel* model, RFLDataSource src,
 
     internal->res = reinterpret_cast<CharModelRes*>(workPtr);
     std::memset(internal->res, 0, sizeof(CharModelRes));
+    workPtr += roundUp(sizeof(CharModelRes), 32);
+
+    const RFLiCharInfo& info = *reinterpret_cast<RFLiCharInfo*>(charInfoBuf);
+    rvlfacelib::CharInfo ci;
+    convertCharInfo(info, &ci);
+    RFLiInitCharModelRes(internal->res, &ci);
+    if (info.glass.type == 0) {
+        internal->res->glassesDlSize = 0;
+    }
+
+    int topRes = 64;
+    u32 resBits = static_cast<u32>(res);
+    if (resBits & 256) topRes = 256;
+    else if (resBits & 128) topRes = 128;
+    const u32 maskStride = getMaskBufSize(res);
+    for (u32 i = 0; i < RFLExp_Max; i++) {
+        if (!internal->maskTexObj[i]) continue;
+        composeMask(workPtr, topRes, info, i == RFLExp_Blink);
+        GXInitTexObj(internal->maskTexObj[i], workPtr, topRes, topRes, GX_TF_RGB5A3, GX_CLAMP, GX_CLAMP, GX_FALSE);
+        GXInitTexObjLOD(internal->maskTexObj[i], GX_LINEAR, GX_LINEAR, 0.0f, 0.0f, 0.0f, GX_FALSE, GX_FALSE, GX_ANISO_1);
+        workPtr += roundUp(maskStride, 32);
+    }
 
     return RFLErrcode_Success;
 }
@@ -511,6 +831,24 @@ void RFLDrawOpaCore(const RFLCharModel* model, const RFLDrawCoreSetting* setting
     GXSetVtxDesc(GX_VA_TEX0, GX_INDEX8);
     GXSetTevOrder(GX_TEVSTAGE0, GX_TEXCOORD_NULL, GX_TEXMAP_NULL, GX_COLOR_NULL);
     GXSetTevColorIn(GX_TEVSTAGE0, GX_CC_ZERO, GX_CC_ZERO, GX_CC_ZERO, GX_CC_KONST);
+
+    CharModelRes* r = internal->res;
+    if (!r) return;
+    GXSetArrayNativeEndian_PC(GX_TRUE);
+
+    GXColor face = getFacelineColor(r->facelineColor);
+    GXSetTevKColor(setting->tevKColorID, face);
+    callDl(r->faceDl, r->faceDlSize, r->faceVtxPos, r->faceVtxNrm, r->faceVtxTxc);
+    callDl(r->noseDl, r->noseDlSize, r->noseVtxPos, r->noseVtxNrm, nullptr);
+    callDl(r->foreheadDl, r->foreheadDlSize, r->foreheadVtxPos, r->foreheadVtxNrm, nullptr);
+
+    GXSetTevKColor(setting->tevKColorID, getHairColor(r->hairColor));
+    callDl(r->hairDl, r->hairDlSize, r->hairVtxPos, r->hairVtxNrm, nullptr);
+
+    GXSetTevKColor(setting->tevKColorID, getBeardColor(r->beardColor));
+    callDl(r->beardDl, r->beardDlSize, r->beardVtxPos, r->beardVtxNrm, nullptr);
+
+    GXSetArrayNativeEndian_PC(GX_FALSE);
 }
 
 void RFLDrawXluCore(const RFLCharModel* model, const RFLDrawCoreSetting* setting) {
@@ -529,6 +867,44 @@ void RFLDrawXluCore(const RFLCharModel* model, const RFLDrawCoreSetting* setting
     GXSetTexCoordGen2(setting->txcID, GX_TG_MTX2x4, GX_TG_TEX0, 60, FALSE, 0x7D);
     GXSetTevColorIn(GX_TEVSTAGE0, GX_CC_ZERO, GX_CC_ZERO, GX_CC_ZERO, GX_CC_TEXC);
     GXSetCullMode(setting->reverseCulling ? GX_CULL_FRONT : GX_CULL_BACK);
+
+    CharModelRes* r = internal->res;
+    if (!r) return;
+    GXSetArrayNativeEndian_PC(GX_TRUE);
+    GXSetZMode(GX_TRUE, GX_LEQUAL, GX_FALSE);
+
+    GXLoadTexObj(&r->faceTexObj, setting->texMapID);
+    callDl(r->faceDl, r->faceDlSize, r->faceVtxPos, r->faceVtxNrm, r->faceVtxTxc);
+
+    GXTexObj* mask = internal->maskTexObj[internal->currentExpression];
+    if (!mask) mask = internal->maskTexObj[RFLExp_Normal];
+    if (mask) {
+        GXLoadTexObj(mask, setting->texMapID);
+        callDl(r->maskDl, r->maskDlSize, r->maskVtxPos, r->maskVtxNrm, r->maskVtxTxc);
+    }
+
+    GXSetTevColorIn(GX_TEVSTAGE0, GX_CC_ZERO, GX_CC_ZERO, GX_CC_ZERO, GX_CC_KONST);
+
+    if (r->capDlSize > 0) {
+        GXSetTevKColor(setting->tevKColorID, getHairColor(r->hairColor));
+        GXLoadTexObj(&r->capTexObj, setting->texMapID);
+        callDl(r->capDl, r->capDlSize, r->capVtxPos, r->capVtxNrm, r->capVtxTxc);
+    }
+
+    if (r->noselineDlSize > 0) {
+        GXSetTevKColor(setting->tevKColorID, GXColor{40, 24, 16, 255});
+        GXLoadTexObj(&r->noseTexObj, setting->texMapID);
+        callDl(r->noselineDl, r->noselineDlSize, r->noselineVtxPos, r->noselineVtxNrm, r->noselineVtxTxc);
+    }
+
+    if (r->glassesDlSize > 0) {
+        GXSetTevKColor(setting->tevKColorID, getGlassColor(r->glassesColor));
+        GXLoadTexObj(&r->glassesTexObj, setting->texMapID);
+        callDl(r->glassesDl, r->glassesDlSize, r->glassesVtxPos, r->glassesVtxNrm, r->glassesVtxTxc);
+    }
+
+    GXSetTevColorIn(GX_TEVSTAGE0, GX_CC_ZERO, GX_CC_ZERO, GX_CC_ZERO, GX_CC_TEXC);
+    GXSetArrayNativeEndian_PC(GX_FALSE);
 }
 
 void RFLDrawShape(const RFLCharModel* model) {
@@ -572,15 +948,18 @@ void RFLiInitShapeRes(rvlfacelib::ShapeRes* shape) {
     ptr8 += sizeof(u32);
 
     if (shape->part == PartsShp::Faceline) {
-        std::memcpy(shape->noseTrans, ptr8, sizeof(Vec));
-        ptr8 += sizeof(Vec);
-        std::memcpy(shape->beardTrans, ptr8, sizeof(Vec));
-        ptr8 += sizeof(Vec);
-        std::memcpy(shape->hairTrans, ptr8, sizeof(Vec));
-        ptr8 += sizeof(Vec);
+        Vec* dstVecs[3] = {shape->noseTrans, shape->beardTrans, shape->hairTrans};
+        for (Vec* v : dstVecs) {
+            u32 raw[3];
+            for (int k = 0; k < 3; k++) {
+                raw[k] = revointernal::readBE<u32>(ptr8 + k * 4);
+            }
+            std::memcpy(v, raw, sizeof(Vec));
+            ptr8 += sizeof(Vec);
+        }
     }
 
-    u16 numVtxPos = revointernal::readBE<u16>(ptr8);
+    u16 numVtxPos = revointernal::readBE16(ptr8);
     if (numVtxPos == 0) {
         shape->numVtxPos = 0;
         shape->numVtxNrm = 0;
@@ -650,7 +1029,7 @@ void RFLiInitShapeRes(rvlfacelib::ShapeRes* shape) {
         ptr8 += byteSize;
     }
 
-    shape->numVtxNrm = revointernal::readBE<u16>(ptr8);
+    shape->numVtxNrm = revointernal::readBE16(ptr8);
     ptr8 += sizeof(u16);
 
     {
@@ -689,11 +1068,13 @@ void RFLiInitShapeRes(rvlfacelib::ShapeRes* shape) {
     if (skipTxc) {
         shape->numVtxTxc = 0;
     } else {
-        shape->numVtxTxc = revointernal::readBE<u16>(ptr8);
+        shape->numVtxTxc = revointernal::readBE16(ptr8);
         ptr8 += sizeof(u16);
 
         u32 byteSize = SIZE_VTX_TXC(shape->numVtxTxc);
-        std::memcpy(shape->vtxTxcBuf, ptr8, byteSize);
+        for (u32 k = 0; k < shape->numVtxTxc * VTX_COORDS_IN_TXC; k++) {
+            shape->vtxTxcBuf[k] = revointernal::readBE<s16>(ptr8 + k * 2);
+        }
         ptr8 += byteSize;
     }
 
@@ -728,37 +1109,43 @@ void RFLiInitTexRes(GXTexObj* texObj, u32 part, u16 file, void* buffer) {
     using namespace rvlfacelib;
 
     u32 texSize = RFLiGetShpTexSize(part, file);
-    auto* tex = static_cast<Texture*>(RFLiAlloc32(texSize));
+    if (texSize < sizeof(Texture)) {
+        return;
+    }
+    auto* tex = static_cast<u8*>(RFLiAlloc32(texSize));
     if (!tex) {
         return;
     }
 
     RFLiLoadShpTexture(part, file, tex);
 
-    auto partType = static_cast<PartsShpTex>(part);
-    switch (partType) {
+    u8 fmt = tex[0];
+    u16 width = revointernal::readBE16(tex + 2);
+    u16 height = revointernal::readBE16(tex + 4);
+    u8 wrapS = tex[6];
+    u8 wrapT = tex[7];
+    u32 imageOfs = revointernal::readBE<u32>(tex + 28);
+
+    u32 imgSize = 0;
+    switch (static_cast<PartsShpTex>(part)) {
     case PartsShpTex::Face:
-        texSize = tex->height * tex->width * 2;
+        imgSize = height * width * 2;
         break;
     case PartsShpTex::Cap:
     case PartsShpTex::Noseline:
-        texSize = tex->height * tex->width / 2;
+        imgSize = height * width / 2;
         break;
     case PartsShpTex::Glass:
-        texSize = tex->height * tex->width;
+        imgSize = height * width;
         break;
     default:
-        texSize = 0;
         break;
     }
 
-    if (texSize > 0) {
-        std::memcpy(buffer, getTexImage(tex), texSize);
-        GXInitTexObj(texObj, buffer, tex->width, tex->height,
-                     static_cast<GXTexFmt>(tex->format),
-                     static_cast<GXTexWrapMode>(tex->wrapS),
-                     static_cast<GXTexWrapMode>(tex->wrapT),
-                     FALSE);
+    if (imgSize > 0 && imageOfs + imgSize <= texSize) {
+        std::memcpy(buffer, tex + imageOfs, imgSize);
+        GXInitTexObj(texObj, buffer, width, height, static_cast<GXTexFmt>(fmt), static_cast<GXTexWrapMode>(wrapS),
+                     static_cast<GXTexWrapMode>(wrapT), FALSE);
         GXInitTexObjLOD(texObj, GX_LINEAR, GX_LINEAR, 0.0f, 0.0f, 0.0f, FALSE, FALSE, GX_ANISO_1);
     }
 
