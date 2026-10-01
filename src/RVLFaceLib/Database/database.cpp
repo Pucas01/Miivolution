@@ -1,6 +1,6 @@
+#include "RFL_Database.h"
+#include "RFL_System.h"
 #include "RVLFaceLib/internal.hpp"
-#include "RVLFaceLib/RFL_Database.h"
-#include "RVLFaceLib/RFL_System.h"
 
 extern "C" {
 

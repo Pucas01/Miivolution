@@ -1,6 +1,7 @@
+#include "RFL_Model.h"
+#include "RFL_System.h"
+
 #include "RVLFaceLib/internal.hpp"
-#include "RVLFaceLib/RFL_Model.h"
-#include "RVLFaceLib/RFL_System.h"
 #include "model_internal.hpp"
 #include "RevoInternal/endian.hpp"
 

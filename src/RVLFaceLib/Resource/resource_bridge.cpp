@@ -1,6 +1,7 @@
+#include "RFL_Model.h"
+
 #include "RVLFaceLib/internal.hpp"
 #include "RVLFaceLib/resource.hpp"
-#include "RVLFaceLib/RFL_Model.h"
 
 extern "C" {
 

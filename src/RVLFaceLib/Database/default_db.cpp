@@ -1,4 +1,4 @@
-#include "RVLFaceLib/internal_types.hpp"
+#include "RFLi_Types.hpp"
 #include <cstring>
 
 alignas(16) static const u8 scDefaultData[6][74] = {

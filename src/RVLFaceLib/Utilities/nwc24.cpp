@@ -1,4 +1,4 @@
-#include "RVLFaceLib/RFL_NWC24.h"
+#include "RFL_NWC24.h"
 
 extern "C" {
 

@@ -1,6 +1,6 @@
+#include "RFL_NANDLoader.h"
+#include "RFL_System.h"
 #include "RVLFaceLib/internal.hpp"
-#include "RVLFaceLib/RFL_NANDLoader.h"
-#include "RVLFaceLib/RFL_System.h"
 #include "RVLFaceLib/resource.hpp"
 
 namespace {

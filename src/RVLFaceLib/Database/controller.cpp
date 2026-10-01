@@ -1,6 +1,6 @@
+#include "RFL_Controller.h"
+#include "RFL_System.h"
 #include "RVLFaceLib/internal.hpp"
-#include "RVLFaceLib/RFL_Controller.h"
-#include "RVLFaceLib/RFL_System.h"
 
 extern "C" {
 

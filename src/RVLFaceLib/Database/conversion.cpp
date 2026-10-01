@@ -1,4 +1,4 @@
-#include "RVLFaceLib/internal_types.hpp"
+#include "RFLi_Types.hpp"
 #include <cstring>
 
 extern "C" {

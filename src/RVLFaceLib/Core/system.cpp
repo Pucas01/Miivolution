@@ -1,5 +1,5 @@
+#include "RFL_System.h"
 #include "RVLFaceLib/internal.hpp"
-#include "RVLFaceLib/RFL_System.h"
 #include <cstring>
 #include <cstdlib>
 #include <algorithm>

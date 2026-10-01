@@ -1,7 +1,7 @@
-#include "RVLFaceLib/internal_types.hpp"
-#include "RVLFaceLib/RFL_DataUtility.h"
-#include "RVLFaceLib/RFL_Model.h"
-#include "RVLFaceLib/RFL_System.h"
+#include "RFL_DataUtility.h"
+#include "RFL_Model.h"
+#include "RFL_System.h"
+#include "RFLi_Types.hpp"
 
 extern "C" {
 

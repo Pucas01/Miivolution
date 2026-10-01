@@ -1,6 +1,6 @@
 #pragma once
 
-#include "RVLFaceLib/RFL_Types.h"
+#include "RFL_Types.h"
 
 #if DOLPHIN_INCLUDES
 #include <dolphin/mtx.h>

@@ -1,5 +1,5 @@
+#include "RFL_MiddleDatabase.h"
 #include "RVLFaceLib/internal.hpp"
-#include "RVLFaceLib/RFL_MiddleDatabase.h"
 #include <cstring>
 
 namespace {
