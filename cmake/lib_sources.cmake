@@ -28,6 +28,8 @@ list(APPEND RVLFACE_SOURCES
     ${LIB_ROOT}/Database/database.cpp
     ${LIB_ROOT}/Database/middle_db.cpp
     ${LIB_ROOT}/Database/controller.cpp
+    ${LIB_ROOT}/Database/conversion.cpp
+    ${LIB_ROOT}/Database/default_db.cpp
 )
 
 # Utilities

@@ -8,6 +8,7 @@ add_executable(miivolution_tests
     test_rfl_nandloader.cpp
     test_rfl_resource.cpp
     test_rfl_shape.cpp
+    test_default_miis.cpp
 )
 
 target_link_libraries(miivolution_tests
