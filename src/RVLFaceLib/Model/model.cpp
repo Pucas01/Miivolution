@@ -834,7 +834,10 @@ void RFLDrawOpaCore(const RFLCharModel* model, const RFLDrawCoreSetting* setting
 
     CharModelRes* r = internal->res;
     if (!r) return;
+
+#if MIIVOLUTION_RAINFALL
     GXSetArrayNativeEndian_PC(GX_TRUE);
+#endif
 
     GXColor face = getFacelineColor(r->facelineColor);
     GXSetTevKColor(setting->tevKColorID, face);
@@ -848,7 +851,9 @@ void RFLDrawOpaCore(const RFLCharModel* model, const RFLDrawCoreSetting* setting
     GXSetTevKColor(setting->tevKColorID, getBeardColor(r->beardColor));
     callDl(r->beardDl, r->beardDlSize, r->beardVtxPos, r->beardVtxNrm, nullptr);
 
+#if MIIVOLUTION_RAINFALL
     GXSetArrayNativeEndian_PC(GX_FALSE);
+#endif
 }
 
 void RFLDrawXluCore(const RFLCharModel* model, const RFLDrawCoreSetting* setting) {
@@ -870,7 +875,9 @@ void RFLDrawXluCore(const RFLCharModel* model, const RFLDrawCoreSetting* setting
 
     CharModelRes* r = internal->res;
     if (!r) return;
+#if MIIVOLUTION_RAINFALL
     GXSetArrayNativeEndian_PC(GX_TRUE);
+#endif
     GXSetZMode(GX_TRUE, GX_LEQUAL, GX_FALSE);
 
     GXLoadTexObj(&r->faceTexObj, setting->texMapID);
@@ -904,7 +911,9 @@ void RFLDrawXluCore(const RFLCharModel* model, const RFLDrawCoreSetting* setting
     }
 
     GXSetTevColorIn(GX_TEVSTAGE0, GX_CC_ZERO, GX_CC_ZERO, GX_CC_ZERO, GX_CC_TEXC);
+#if MIIVOLUTION_RAINFALL
     GXSetArrayNativeEndian_PC(GX_FALSE);
+#endif
 }
 
 void RFLDrawShape(const RFLCharModel* model) {

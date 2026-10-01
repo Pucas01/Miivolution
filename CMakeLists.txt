@@ -189,6 +189,7 @@ if(MIIVOLUTION_RAINFALL_TARGETS)
     foreach(_t RevoInternal RVLFaceLib Miivolution)
         target_link_libraries(${_t} PUBLIC ${MIIVOLUTION_RAINFALL_TARGETS})
     endforeach()
+    target_compile_definitions(RVLFaceLib PRIVATE MIIVOLUTION_RAINFALL=1)
 endif()
 
 if(NOT MSVC)
