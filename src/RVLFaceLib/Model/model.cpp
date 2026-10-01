@@ -617,10 +617,22 @@ void convertCharInfo(const RFLiCharInfo& in, rvlfacelib::CharInfo* out) {
 }
 
 void bindArrays(const s16* pos, const s16* nrm, const s16* txc) {
-    GXSetArray(GX_VA_POS, pos, 6);
-    GXSetArray(GX_VA_NRM, nrm, 6);
+    GXSetArray(GX_VA_POS, pos, 6
+#if MIIVOLUTION_AURORA
+                             , true
+#endif
+    );
+    GXSetArray(GX_VA_NRM, nrm, 6
+#if MIIVOLUTION_AURORA
+                             , true
+#endif
+    );
     if (txc) {
-        GXSetArray(GX_VA_TEX0, txc, 4);
+        GXSetArray(GX_VA_TEX0, txc, 4
+#if MIIVOLUTION_AURORA
+                                  , true
+#endif
+        );
         GXSetVtxDesc(GX_VA_TEX0, GX_INDEX8);
     } else {
         GXSetVtxDesc(GX_VA_TEX0, GX_NONE);
