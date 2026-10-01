@@ -1,0 +1,5 @@
+set(REVO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/src/RevoMii")
+
+list(APPEND REVOMII_SOURCES
+    ${REVO_ROOT}/revomii.cpp
+)
