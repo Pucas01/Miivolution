@@ -1,6 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include "RVLFaceLib.h"
-#include "RVLFaceLib/internal_types.hpp"
+#include "RFLi_Types.hpp"
 #include <vector>
 
 namespace {
