@@ -25,7 +25,8 @@ jobs:
           cmake -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DMIIVOLUTION_BUILD_TESTS=ON \
-            -DMIIVOLUTION_FETCH_AURORA=ON
+            -DMIIVOLUTION_FETCH_AURORA=ON \
+            -DSDL_UNIX_CONSOLE_BUILD=ON
 
       - name: Build
         run: cmake --build build
