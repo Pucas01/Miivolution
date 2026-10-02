@@ -3,6 +3,8 @@
 #ifndef MIIVOLUTION_MII_HPP
 #define MIIVOLUTION_MII_HPP
 
+#include "Miivolution/database.hpp"
+
 #if DOLPHIN_INCLUDES
 #include <dolphin/types.h>
 #else
@@ -94,6 +96,7 @@ bool serializeMii(const MII_DATA_STRUCT& m, u8* out, u32 outSize);
 bool deserializeMii(const u8* in, u32 inSize, MII_DATA_STRUCT& m);
 
 bool getGuestMii(u16 index, MII_DATA_STRUCT& out);
+void init(const database::PrefPathConfig &cfg);
 
 }
 

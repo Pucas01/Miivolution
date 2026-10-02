@@ -105,13 +105,6 @@ RFLErrcode RFLInitResAsync(void* workBuffer, void* resBuffer, u32 resSize, BOOL 
     // Trigger database load (mimics RFLiBootLoadDatabaseAsync behavior)
     RFLiGetDatabase();
 
-    // Auto-import any Miis from miimports directory, and create them if they don't exist
-    const auto prefDir = miivolution::util::getPrefDir();
-    std::filesystem::create_directories(prefDir / "miimports");
-    std::filesystem::create_directories(prefDir / "miixports");
-
-    miivolution::storage::importAllMiis();
-
     return RFLErrcode_Success;
 }
 

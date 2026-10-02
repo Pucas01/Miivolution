@@ -1,6 +1,10 @@
 #include "Miivolution/mii.hpp"
+
+#include "Miivolution/database.hpp"
+#include "Miivolution/storage.hpp"
 #include "RVLFaceLib/RFLi_Types.h"
 #include "RevoInternal/bitstream.hpp"
+#include "RevoInternal/util.hpp"
 
 #define MII_RAW_SIZE 0x4A
 
@@ -182,5 +186,17 @@ namespace miivolution::mii {
         RFLiGetDefaultRawData(data, index);
 
         return true;
+    }
+
+    void init(const database::PrefPathConfig &cfg) {
+        database::setPrefPath(cfg);
+
+        // create import / export dirs if they don't exist
+        const auto prefDir = miivolution::util::getPrefDir();
+        std::filesystem::create_directories(prefDir / "miimports");
+        std::filesystem::create_directories(prefDir / "miixports");
+
+        // import all miis from the import directory
+        miivolution::storage::importAllMiis();
     }
 }
