@@ -2,4 +2,5 @@ set(INTERNAL_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/src/RevoInternal")
 
 list(APPEND MIIVOLUTION_INTERNAL_SOURCES
     ${INTERNAL_ROOT}/log.cpp
+    ${INTERNAL_ROOT}/util.cpp
 )
