@@ -92,6 +92,54 @@ s32 findMiiByCreateID(const RFLCreateID& id) {
     return -1;
 }
 
+std::vector<u16> findMiisByName(const std::string& name) {
+    std::vector<u16> indices;
+    RFLiDatabase* db = RFLiGetDatabase();
+    if (!db || name.empty()) {
+        return indices;
+    }
+
+    u16 nameU16[RFL_NAME_LEN] = {0};
+    size_t searchLen = 0;
+    for (size_t i = 0; i < name.length() && i < RFL_NAME_LEN; i++) {
+        nameU16[i] = static_cast<u16>(name[i]);
+        searchLen++;
+    }
+
+    for (u32 i = 0; i < RFL_DB_CHAR_MAX; i++) {
+        bool isEmpty = true;
+        bool matches = true;
+
+        for (int j = 0; j < RFL_NAME_LEN; j++) {
+            if (db->rawData[i].name[j] != 0) {
+                isEmpty = false;
+            }
+        }
+
+        if (isEmpty) continue;
+
+        for (size_t j = 0; j < searchLen; j++) {
+            if (db->rawData[i].name[j] != nameU16[j]) {
+                matches = false;
+                break;
+            }
+        }
+
+        for (size_t j = searchLen; j < RFL_NAME_LEN; j++) {
+            if (db->rawData[i].name[j] != 0) {
+                matches = false;
+                break;
+            }
+        }
+
+        if (matches) {
+            indices.push_back(static_cast<u16>(i));
+        }
+    }
+
+    return indices;
+}
+
 s32 findEmptySlot() {
     RFLiDatabase* db = RFLiGetDatabase();
     if (!db) {

@@ -8,8 +8,7 @@ static_assert(sizeof(miivolution::mii::MII_DATA_STRUCT) == sizeof(RFLiCharData),
     "MII_DATA_STRUCT must exactly match RFLiCharData layout");
 
 extern "C" {
-    extern const u8 scDefaultData[6][74];
-    void parseRawData(const u8* r, RFLiCharData* d);
+    void RFLiGetDefaultRawData(RFLiCharData* data, u16 index);
 }
 
 namespace miivolution::mii {
@@ -180,7 +179,7 @@ namespace miivolution::mii {
         if (index >= 6) return false;
 
         RFLiCharData* data = reinterpret_cast<RFLiCharData*>(&out);
-        parseRawData(scDefaultData[index], data);
+        RFLiGetDefaultRawData(data, index);
 
         return true;
     }

@@ -5,6 +5,8 @@
 #include "RFL_Types.h"
 #include <filesystem>
 #include <functional>
+#include <vector>
+#include <string>
 
 #if DOLPHIN_INCLUDES
 #include <dolphin/types.h>
@@ -24,6 +26,7 @@ bool getMii(u16 index, mii::MII_DATA_STRUCT& out);
 bool setMii(u16 index, const mii::MII_DATA_STRUCT& data);
 
 s32 findMiiByCreateID(const RFLCreateID& id);
+std::vector<u16> findMiisByName(const std::string& name);
 s32 findEmptySlot();
 bool addMii(const mii::MII_DATA_STRUCT& data, u16* outIndex = nullptr);
 bool deleteMii(u16 index);

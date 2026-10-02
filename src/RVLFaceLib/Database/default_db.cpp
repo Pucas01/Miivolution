@@ -147,4 +147,9 @@ void RFLiGetDefaultData(RFLiCharInfo* info, u16 index) {
     RFLiConvertRaw2Info(&tempData, info);
 }
 
+void RFLiGetDefaultRawData(RFLiCharData* data, u16 index) {
+    index = index % 6;
+    parseRawData(scDefaultData[index], data);
+}
+
 }
