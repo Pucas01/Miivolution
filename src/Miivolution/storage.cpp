@@ -7,9 +7,14 @@
 
 namespace {
 
-std::filesystem::path getMiisDir() {
+std::filesystem::path getMiixportsDir() {
     const auto prefDir = miivolution::util::getPrefDir();
-    return prefDir / "miis";
+    return prefDir / "miixports";
+}
+
+std::filesystem::path getMiimportsDir() {
+    const auto prefDir = miivolution::util::getPrefDir();
+    return prefDir / "miimports";
 }
 
 std::string getMiiFileName(const miivolution::mii::MII_DATA_STRUCT& mii) {
@@ -40,7 +45,7 @@ std::filesystem::path resolveExportPath(const std::optional<std::filesystem::pat
         return path.value();
     }
 
-    const auto miisDir = getMiisDir();
+    const auto miisDir = getMiixportsDir();
     std::filesystem::create_directories(miisDir);
     return miisDir / getMiiFileName(mii);
 }
@@ -108,7 +113,66 @@ bool importMiiToDB(const std::filesystem::path& path, u16* outIndex) {
         return false;
     }
 
+    s32 existingIndex = database::findMiiByCreateID(mii.createID);
+    if (existingIndex >= 0) {
+        if (outIndex) {
+            *outIndex = static_cast<u16>(existingIndex);
+        }
+        return false;
+    }
+
     return database::addMii(mii, outIndex);
+}
+
+std::vector<std::filesystem::path> getMiixports() {
+    std::vector<std::filesystem::path> files;
+    const auto dir = getMiixportsDir();
+
+    if (!std::filesystem::exists(dir)) {
+        return files;
+    }
+
+    for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+        if (entry.is_regular_file() && entry.path().extension() == ".mii") {
+            files.push_back(entry.path());
+        }
+    }
+
+    return files;
+}
+
+std::vector<std::filesystem::path> getMiimports() {
+    std::vector<std::filesystem::path> files;
+    const auto dir = getMiimportsDir();
+
+    if (!std::filesystem::exists(dir)) {
+        return files;
+    }
+
+    for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+        if (entry.is_regular_file() && entry.path().extension() == ".mii") {
+            files.push_back(entry.path());
+        }
+    }
+
+    return files;
+}
+
+u32 importAllMiis(std::vector<u16>* outIndices) {
+    const auto files = getMiimports();
+    u32 imported = 0;
+
+    for (const auto& file : files) {
+        u16 index;
+        if (importMiiToDB(file, &index)) {
+            imported++;
+            if (outIndices) {
+                outIndices->push_back(index);
+            }
+        }
+    }
+
+    return imported;
 }
 
 }

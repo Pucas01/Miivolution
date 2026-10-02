@@ -30,6 +30,12 @@ bool importMii(const std::filesystem::path& path, mii::MII_DATA_STRUCT& out);
 
 bool importMiiToDB(const std::filesystem::path& path, u16* outIndex = nullptr);
 
+std::vector<std::filesystem::path> getMiixports();
+
+std::vector<std::filesystem::path> getMiimports();
+
+u32 importAllMiis(std::vector<u16>* outIndices = nullptr);
+
 }
 
 #endif // MIIVOLUTION_STORAGE_HPP
