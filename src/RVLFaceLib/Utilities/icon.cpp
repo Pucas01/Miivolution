@@ -145,6 +145,8 @@ void RFLiSetupCopyTex(GXTexFmt fmt, u16 width, u16 height, void* buf, GXColor cl
     GXSetCopyClear(clearColor, GX_MAX_Z24);
     GXSetTexCopySrc(0, 0, width, height);
     GXSetTexCopyDst(width, height, fmt, GX_FALSE);
+    GXCopyTex(buf, GX_TRUE);
+    GXPixModeSync();
 }
 
 void RFLiMakeIcon(void* buf, RFLiCharInfo* info, RFLExpression expression, const RFLIconSetting* setting) {
