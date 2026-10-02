@@ -19,7 +19,8 @@ using namespace rvlfacelib;
 
 namespace {
 RFLCallback iconDrawCallback;
-CoordData* coordinateData;
+CoordData DEFAULT_COORD_DATA = {1, 2, 0, FALSE, FALSE, FALSE};
+CoordData* coordinateData = &DEFAULT_COORD_DATA;
 
 constexpr u32 roundUp(u32 value, u32 alignment) {
     return (value + alignment - 1) & ~(alignment - 1);
