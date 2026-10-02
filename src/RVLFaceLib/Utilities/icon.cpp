@@ -19,8 +19,8 @@ using namespace rvlfacelib;
 
 namespace {
 RFLCallback iconDrawCallback;
-CoordData DEFAULT_COORD_DATA = {1, 2, 0, FALSE, FALSE, FALSE};
-CoordData* coordinateData = &DEFAULT_COORD_DATA;
+CoordData defaultCoordData = {1, 2, 0, FALSE, FALSE, FALSE};
+CoordData* coordinateData = &defaultCoordData;
 
 constexpr u32 roundUp(u32 value, u32 alignment) {
     return (value + alignment - 1) & ~(alignment - 1);
@@ -134,6 +134,14 @@ void RFLiInitCharModel(RFLCharModel* model, RFLiCharInfo* info, void* work, RFLR
 }
 
 void RFLiSetupCopyTex(GXTexFmt fmt, u16 width, u16 height, void* buf, GXColor clearColor) {
+    GXSetFog(GX_FOG_NONE, 1.0f, 1.0f, 0.0f, 0.0f, (GXColor){0, 0, 0, 0});
+    GXSetColorUpdate(GX_TRUE);
+    GXSetAlphaUpdate(GX_TRUE);
+    GXSetDstAlpha(GX_FALSE, 0);
+    GXSetZMode(GX_TRUE, GX_LEQUAL, GX_TRUE);
+    GXSetPixelFmt(GX_PF_RGBA6_Z24, GX_ZC_LINEAR);
+    GXSetCopyFilter(GX_FALSE, nullptr, GX_FALSE, nullptr);
+    GXSetCopyClamp(static_cast<GXClamp>(GX_CLAMP_TOP | GX_CLAMP_BOTTOM));
     GXSetCopyClear(clearColor, GX_MAX_Z24);
     GXSetTexCopySrc(0, 0, width, height);
     GXSetTexCopyDst(width, height, fmt, GX_FALSE);
@@ -194,7 +202,7 @@ void RFLiMakeIcon(void* buf, RFLiCharInfo* info, RFLExpression expression, const
     GXGetScissor(&scissorOffsetX, &scissorOffsetY, &scissorWidth, &scissorHeight);
     GXSetScissor(0, 0, setting->width, setting->height);
 
-    RFLiSetupCopyTex(GX_TF_RGBA8, setting->width, setting->height, buf, backColor);
+    RFLiSetupCopyTex(static_cast<GXTexFmt>(GX_RGBA8), setting->width, setting->height, buf, backColor);
 
     GXGetViewportv(vp);
     GXSetViewport(0.0f, 0.0f, setting->width, setting->height, 0.0f, 1.0f);
