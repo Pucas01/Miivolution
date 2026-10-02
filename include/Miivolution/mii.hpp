@@ -3,8 +3,6 @@
 #ifndef MIIVOLUTION_MII_HPP
 #define MIIVOLUTION_MII_HPP
 
-#include "Miivolution/database.hpp"
-
 #if DOLPHIN_INCLUDES
 #include <dolphin/types.h>
 #else
@@ -12,6 +10,10 @@
 #endif
 
 #include "RFL_Types.h"
+
+namespace miivolution::database {
+    struct PrefPathConfig;
+}
 
 namespace miivolution::mii {
 
