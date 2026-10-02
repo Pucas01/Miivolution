@@ -1,14 +1,20 @@
 #include "RFL_System.h"
-#include "RVLFaceLib/internal.hpp"
 #include <cstring>
 #include <cstdlib>
 #include <algorithm>
+#include <filesystem>
+
+#include "RVLFaceLib/RFLi_Database.h"
+#include "RVLFaceLib/internal.hpp"
+#include "Miivolution/storage.hpp"
+#include "RevoInternal/util.hpp"
 
 #ifndef _WIN32
 #include <cstdlib>
 #endif
 
 extern "C" void RFLiInitResourceCache(void* data, u32 size);
+extern "C" RFLiDatabase* RFLiGetDatabase();
 
 namespace {
 
@@ -95,6 +101,9 @@ RFLErrcode RFLInitResAsync(void* workBuffer, void* resBuffer, u32 resSize, BOOL 
     state.initialized = true;
 
     RFLiInitResourceCache(resBuffer, resSize);
+
+    // Trigger database load (mimics RFLiBootLoadDatabaseAsync behavior)
+    RFLiGetDatabase();
 
     return RFLErrcode_Success;
 }

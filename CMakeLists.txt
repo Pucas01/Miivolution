@@ -119,6 +119,7 @@ add_library(Miivolution::RevoInternal ALIAS RevoInternal)
 target_include_directories(RevoInternal
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 # =============================================================================
@@ -146,16 +147,6 @@ target_link_libraries(RVLFaceLib
     PRIVATE
         RevoInternal
 )
-
-if(MIIVOLUTION_AURORA_TARGETS)
-    target_link_libraries(RVLFaceLib PUBLIC ${MIIVOLUTION_AURORA_TARGETS})
-    if(aurora_SOURCE_DIR)
-        target_include_directories(RVLFaceLib PUBLIC ${aurora_SOURCE_DIR}/include)
-    endif()
-    target_compile_definitions(RVLFaceLib PUBLIC DOLPHIN_INCLUDES=1 TARGET_PC=1 MIIVOLUTION_AURORA=1)
-elseif(MIIVOLUTION_DOLPHIN)
-    target_compile_definitions(RVLFaceLib PRIVATE DOLPHIN_INCLUDES=1 TARGET_PC=1)
-endif()
 
 # =============================================================================
 # MIIVOLUTION
@@ -197,6 +188,29 @@ if(NOT MSVC)
         target_compile_options(${_t} PUBLIC -fshort-wchar)
     endforeach()
 endif()
+
+# =============================================================================
+# Aurora Preprocessor Directives
+# =============================================================================
+
+foreach(_t RevoInternal RVLFaceLib Miivolution)
+    if(MIIVOLUTION_AURORA_TARGETS)
+        target_link_libraries(${_t} PUBLIC ${MIIVOLUTION_AURORA_TARGETS})
+        if(aurora_SOURCE_DIR)
+            target_include_directories(${_t} PUBLIC ${aurora_SOURCE_DIR}/include)
+        endif()
+        target_compile_definitions(${_t} PUBLIC
+            DOLPHIN_INCLUDES=1
+            TARGET_PC=1
+            MIIVOLUTION_AURORA=1
+        )
+    elseif(MIIVOLUTION_DOLPHIN)
+        target_compile_definitions(${_t} PUBLIC
+            DOLPHIN_INCLUDES=1
+            TARGET_PC=1
+        )
+    endif()
+endforeach()
 
 # =============================================================================
 # Tests

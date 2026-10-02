@@ -3,7 +3,7 @@
 
 #include "RVLFaceLib/internal.hpp"
 #include "model_internal.hpp"
-#include "RFLi_Types.hpp"
+#include "RVLFaceLib/RFLi_Types.h"
 #include "RVLFaceLib/resource.hpp"
 #include <cmath>
 #include <vector>
@@ -731,9 +731,11 @@ void RFLDrawXluCore(const RFLCharModel* model, const RFLDrawCoreSetting* setting
 #endif
     GXSetZMode(GX_TRUE, GX_LEQUAL, GX_FALSE);
 
+    GXSetTevSwapMode(GX_TEVSTAGE0, setting->tevSwapTable, static_cast<GXTevSwapSel>(setting->tevSwapTable + 1));
     GXLoadTexObj(&r->faceTexObj, setting->texMapID);
     callDl(r->faceDl, r->faceDlSize, r->faceVtxPos, r->faceVtxNrm, r->faceVtxTxc,
            sizeof(r->faceVtxPos), sizeof(r->faceVtxNrm), sizeof(r->faceVtxTxc));
+    GXSetTevSwapMode(GX_TEVSTAGE0, setting->tevSwapTable, setting->tevSwapTable);
 
     GXTexObj* mask = internal->maskTexObj[internal->currentExpression];
     if (!mask) mask = internal->maskTexObj[RFLExp_Normal];

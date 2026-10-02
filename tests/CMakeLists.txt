@@ -9,6 +9,9 @@ add_executable(miivolution_tests
     test_rfl_resource.cpp
     test_rfl_shape.cpp
     test_default_miis.cpp
+    test_database_api.cpp
+    test_mii_serialization.cpp
+    test_storage_api.cpp
 )
 
 target_link_libraries(miivolution_tests

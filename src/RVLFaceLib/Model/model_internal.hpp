@@ -1,7 +1,7 @@
 #pragma once
 
 #include "RFL_Types.h"
-#include "RFLi_Types.hpp"
+#include "RVLFaceLib/RFLi_Types.h"
 
 #if DOLPHIN_INCLUDES
 #include <dolphin/mtx.h>

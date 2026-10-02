@@ -1,7 +1,12 @@
-#include "RFL_DataUtility.h"
-#include "RFL_Model.h"
 #include "RFL_System.h"
-#include "RFLi_Types.hpp"
+#include "RFL_Database.h"
+#include "RVLFaceLib/RFLi_Types.h"
+#include "RVLFaceLib/RFLi_Database.h"
+
+extern "C" {
+    void RFLiConvertRaw2Info(const RFLiCharData* data, RFLiCharInfo* info);
+    RFLiDatabase* RFLiGetDatabase();
+}
 
 extern "C" {
 
@@ -19,7 +24,16 @@ RFLErrcode RFLiPickupCharInfo(void* info, RFLDataSource source, RFLMiddleDB* db,
 
     switch (source) {
     case RFLDataSource_Official:
-        RFLiGetDefaultData(charInfo, RFLiPlaceholderOfficialIndex);
+        if (RFLIsAvailableOfficialData(index)) {
+            RFLiDatabase* database = RFLiGetDatabase();
+            if (database) {
+                RFLiConvertRaw2Info(&database->rawData[index], charInfo);
+            } else {
+                RFLiGetDefaultData(charInfo, index);
+            }
+        } else {
+            RFLiGetDefaultData(charInfo, RFLiPlaceholderOfficialIndex);
+        }
         err = RFLErrcode_Success;
         break;
     case RFLDataSource_Controller1:
