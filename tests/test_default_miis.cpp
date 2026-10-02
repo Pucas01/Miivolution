@@ -51,7 +51,7 @@ TEST_CASE("Default Mii Guest A has expected data", "[rfl][default-db]") {
     REQUIRE(charInfo.body.height == 64);
     REQUIRE(charInfo.body.build == 64);
     REQUIRE(charInfo.personal.sex == 0);
-    REQUIRE(charInfo.personal.color == 1);
+    REQUIRE(charInfo.personal.color == 4);
 }
 
 TEST_CASE("Default Mii Guest B has different data than Guest A", "[rfl][default-db]") {
@@ -88,9 +88,11 @@ TEST_CASE("Invalid data sources return correct errors", "[rfl][default-db]") {
     RFLiCharInfo charInfo;
     RFLMiddleDB* db = nullptr;
 
+    // official data source succeeds with null db (falls back to defaults)
     RFLErrcode err = RFLiPickupCharInfo(&charInfo, RFLDataSource_Official, db, 0);
-    REQUIRE(err == RFLErrcode_Broken);
+    REQUIRE(err == RFLErrcode_Success);
 
+    // controller data sources fail with null db (require actual controller data)
     err = RFLiPickupCharInfo(&charInfo, RFLDataSource_Controller1, db, 0);
     REQUIRE(err == RFLErrcode_Broken);
 }

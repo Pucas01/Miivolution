@@ -616,32 +616,30 @@ void convertCharInfo(const RFLiCharInfo& in, rvlfacelib::CharInfo* out) {
     out->personalColor = in.personal.color;
 }
 
-void bindArrays(const s16* pos, const s16* nrm, const s16* txc) {
-    GXSetArray(GX_VA_POS, pos, 6
+void bindArrays(const s16* pos, const s16* nrm, const s16* txc, u32 posSize, u32 nrmSize, u32 txcSize) {
 #if MIIVOLUTION_AURORA
-                             , true
+    GXSetArray(GX_VA_POS, pos, posSize, 6, true);
+    GXSetArray(GX_VA_NRM, nrm, nrmSize, 6, true);
+#else
+    GXSetArray(GX_VA_POS, pos, 6);
+    GXSetArray(GX_VA_NRM, nrm, 6);
 #endif
-    );
-    GXSetArray(GX_VA_NRM, nrm, 6
-#if MIIVOLUTION_AURORA
-                             , true
-#endif
-    );
     if (txc) {
-        GXSetArray(GX_VA_TEX0, txc, 4
 #if MIIVOLUTION_AURORA
-                                  , true
+        GXSetArray(GX_VA_TEX0, txc, txcSize, 4, true);
+#else
+        GXSetArray(GX_VA_TEX0, txc, 4);
 #endif
-        );
         GXSetVtxDesc(GX_VA_TEX0, GX_INDEX8);
     } else {
         GXSetVtxDesc(GX_VA_TEX0, GX_NONE);
     }
 }
 
-void callDl(const u8* dl, u32 size, const s16* pos, const s16* nrm, const s16* txc) {
+void callDl(const u8* dl, u32 size, const s16* pos, const s16* nrm, const s16* txc,
+            u32 posSize, u32 nrmSize, u32 txcSize) {
     if (!dl || size == 0) return;
-    bindArrays(pos, nrm, txc);
+    bindArrays(pos, nrm, txc, posSize, nrmSize, txcSize);
     GXCallDisplayList(dl, size);
 }
 
@@ -853,15 +851,20 @@ void RFLDrawOpaCore(const RFLCharModel* model, const RFLDrawCoreSetting* setting
 
     GXColor face = getFacelineColor(r->facelineColor);
     GXSetTevKColor(setting->tevKColorID, face);
-    callDl(r->faceDl, r->faceDlSize, r->faceVtxPos, r->faceVtxNrm, r->faceVtxTxc);
-    callDl(r->noseDl, r->noseDlSize, r->noseVtxPos, r->noseVtxNrm, nullptr);
-    callDl(r->foreheadDl, r->foreheadDlSize, r->foreheadVtxPos, r->foreheadVtxNrm, nullptr);
+    callDl(r->faceDl, r->faceDlSize, r->faceVtxPos, r->faceVtxNrm, r->faceVtxTxc,
+           sizeof(r->faceVtxPos), sizeof(r->faceVtxNrm), sizeof(r->faceVtxTxc));
+    callDl(r->noseDl, r->noseDlSize, r->noseVtxPos, r->noseVtxNrm, nullptr,
+           sizeof(r->noseVtxPos), sizeof(r->noseVtxNrm), 0);
+    callDl(r->foreheadDl, r->foreheadDlSize, r->foreheadVtxPos, r->foreheadVtxNrm, nullptr,
+           sizeof(r->capVtxPos), sizeof(r->capVtxNrm), 0);
 
     GXSetTevKColor(setting->tevKColorID, getHairColor(r->hairColor));
-    callDl(r->hairDl, r->hairDlSize, r->hairVtxPos, r->hairVtxNrm, nullptr);
+    callDl(r->hairDl, r->hairDlSize, r->hairVtxPos, r->hairVtxNrm, nullptr,
+           sizeof(r->capVtxPos), sizeof(r->capVtxNrm), 0);
 
     GXSetTevKColor(setting->tevKColorID, getBeardColor(r->beardColor));
-    callDl(r->beardDl, r->beardDlSize, r->beardVtxPos, r->beardVtxNrm, nullptr);
+    callDl(r->beardDl, r->beardDlSize, r->beardVtxPos, r->beardVtxNrm, nullptr,
+           sizeof(r->beardVtxPos), sizeof(r->beardVtxNrm), 0);
 
 #if MIIVOLUTION_RAINFALL
     GXSetArrayNativeEndian_PC(GX_FALSE);
@@ -893,13 +896,15 @@ void RFLDrawXluCore(const RFLCharModel* model, const RFLDrawCoreSetting* setting
     GXSetZMode(GX_TRUE, GX_LEQUAL, GX_FALSE);
 
     GXLoadTexObj(&r->faceTexObj, setting->texMapID);
-    callDl(r->faceDl, r->faceDlSize, r->faceVtxPos, r->faceVtxNrm, r->faceVtxTxc);
+    callDl(r->faceDl, r->faceDlSize, r->faceVtxPos, r->faceVtxNrm, r->faceVtxTxc,
+           sizeof(r->faceVtxPos), sizeof(r->faceVtxNrm), sizeof(r->faceVtxTxc));
 
     GXTexObj* mask = internal->maskTexObj[internal->currentExpression];
     if (!mask) mask = internal->maskTexObj[RFLExp_Normal];
     if (mask) {
         GXLoadTexObj(mask, setting->texMapID);
-        callDl(r->maskDl, r->maskDlSize, r->maskVtxPos, r->maskVtxNrm, r->maskVtxTxc);
+        callDl(r->maskDl, r->maskDlSize, r->maskVtxPos, r->maskVtxNrm, r->maskVtxTxc,
+               sizeof(r->maskVtxPos), sizeof(r->maskVtxNrm), sizeof(r->maskVtxTxc));
     }
 
     GXSetTevColorIn(GX_TEVSTAGE0, GX_CC_ZERO, GX_CC_ZERO, GX_CC_ZERO, GX_CC_KONST);
@@ -907,19 +912,22 @@ void RFLDrawXluCore(const RFLCharModel* model, const RFLDrawCoreSetting* setting
     if (r->capDlSize > 0) {
         GXSetTevKColor(setting->tevKColorID, getHairColor(r->hairColor));
         GXLoadTexObj(&r->capTexObj, setting->texMapID);
-        callDl(r->capDl, r->capDlSize, r->capVtxPos, r->capVtxNrm, r->capVtxTxc);
+        callDl(r->capDl, r->capDlSize, r->capVtxPos, r->capVtxNrm, r->capVtxTxc,
+               sizeof(r->capVtxPos), sizeof(r->capVtxNrm), sizeof(r->capVtxTxc));
     }
 
     if (r->noselineDlSize > 0) {
         GXSetTevKColor(setting->tevKColorID, GXColor{40, 24, 16, 255});
         GXLoadTexObj(&r->noseTexObj, setting->texMapID);
-        callDl(r->noselineDl, r->noselineDlSize, r->noselineVtxPos, r->noselineVtxNrm, r->noselineVtxTxc);
+        callDl(r->noselineDl, r->noselineDlSize, r->noselineVtxPos, r->noselineVtxNrm, r->noselineVtxTxc,
+               sizeof(r->noselineVtxPos), sizeof(r->noselineVtxNrm), sizeof(r->noselineVtxTxc));
     }
 
     if (r->glassesDlSize > 0) {
         GXSetTevKColor(setting->tevKColorID, getGlassColor(r->glassesColor));
         GXLoadTexObj(&r->glassesTexObj, setting->texMapID);
-        callDl(r->glassesDl, r->glassesDlSize, r->glassesVtxPos, r->glassesVtxNrm, r->glassesVtxTxc);
+        callDl(r->glassesDl, r->glassesDlSize, r->glassesVtxPos, r->glassesVtxNrm, r->glassesVtxTxc,
+               sizeof(r->glassesVtxPos), sizeof(r->glassesVtxNrm), sizeof(r->glassesVtxTxc));
     }
 
     GXSetTevColorIn(GX_TEVSTAGE0, GX_CC_ZERO, GX_CC_ZERO, GX_CC_ZERO, GX_CC_TEXC);
