@@ -3,7 +3,7 @@
 
 #include "RVLFaceLib/internal.hpp"
 #include "model_internal.hpp"
-#include "RFLi_Types.hpp"
+#include "RVLFaceLib/RFLi_Types.hpp"
 #include "RVLFaceLib/resource.hpp"
 #include <cmath>
 #include <vector>

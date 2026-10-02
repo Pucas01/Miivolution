@@ -7,7 +7,7 @@
 #include "RFL_NANDLoader.h"
 #include "RFL_NWC24.h"
 #include "RVLFaceLib/internal.hpp"
-#include "RFLi_Types.hpp"
+#include "RVLFaceLib/RFLi_Types.hpp"
 #include <cstring>
 
 extern "C" {

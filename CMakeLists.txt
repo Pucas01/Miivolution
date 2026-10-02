@@ -119,6 +119,7 @@ add_library(Miivolution::RevoInternal ALIAS RevoInternal)
 target_include_directories(RevoInternal
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 # =============================================================================

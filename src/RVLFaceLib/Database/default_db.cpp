@@ -1,8 +1,9 @@
-#include "RFLi_Types.hpp"
+#include "RVLFaceLib/RFLi_Types.hpp"
+#include "RevoInternal/bitstream.hpp"
 #include "RevoInternal/endian.hpp"
 #include <cstring>
 
-alignas(16) static const u8 scDefaultData[6][74] = {
+alignas(16) const u8 scDefaultData[6][74] = {
     // "Guest A"
     {0x00, 0x08, 0x00, 0x6E, 0x00, 0x6F, 0x00, 0x20, 0x00, 0x6E, 0x00,
      0x61, 0x00, 0x6D, 0x00, 0x65, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -53,104 +54,89 @@ alignas(16) static const u8 scDefaultData[6][74] = {
      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
 };
 
-namespace {
-
-u32 bits(u16 word, int& pos, int width) {
-    pos -= width;
-    return (word >> pos) & ((1u << width) - 1);
-}
+extern "C" {
 
 void parseRawData(const u8* r, RFLiCharData* d) {
     std::memset(d, 0, sizeof(*d));
-    int p;
-    u16 w = revointernal::readBE16(r);
-    p = 16;
-    d->padding0 = bits(w, p, 1);
-    d->sex = bits(w, p, 1);
-    d->birthMonth = bits(w, p, 4);
-    d->birthDay = bits(w, p, 5);
-    d->favoriteColor = bits(w, p, 4);
-    d->favorite = bits(w, p, 1);
-    for (int i = 0; i < RFL_NAME_LEN; i++) d->name[i] = revointernal::readBE16(r + 2 + i * 2);
+
+    revointernal::BitReader reader(r);
+    d->padding0 = reader.get(1);
+    d->sex = reader.get(1);
+    d->birthMonth = reader.get(4);
+    d->birthDay = reader.get(5);
+    d->favoriteColor = reader.get(4);
+    d->favorite = reader.get(1);
+
+    for (int i = 0; i < RFL_NAME_LEN; i++) {
+        d->name[i] = revointernal::readBE16(r + 2 + i * 2);
+    }
+
     d->height = r[22];
     d->build = r[23];
     std::memcpy(&d->createID, r + 24, sizeof(RFLCreateID));
 
-    const u8* q = r + 32;
-    w = revointernal::readBE16(q); q += 2; p = 16;
-    d->faceType = bits(w, p, 3);
-    d->faceColor = bits(w, p, 3);
-    d->faceTex = bits(w, p, 4);
-    d->padding2 = bits(w, p, 3);
-    d->localonly = bits(w, p, 1);
-    d->type = bits(w, p, 2);
+    revointernal::BitReader reader2(r + 32);
+    d->faceType = reader2.get(3);
+    d->faceColor = reader2.get(3);
+    d->faceTex = reader2.get(4);
+    d->padding2 = reader2.get(3);
+    d->localonly = reader2.get(1);
+    d->type = reader2.get(2);
 
-    w = revointernal::readBE16(q); q += 2; p = 16;
-    d->hairType = bits(w, p, 7);
-    d->hairColor = bits(w, p, 3);
-    d->hairFlip = bits(w, p, 1);
-    d->padding3 = bits(w, p, 5);
+    d->hairType = reader2.get(7);
+    d->hairColor = reader2.get(3);
+    d->hairFlip = reader2.get(1);
+    d->padding3 = reader2.get(5);
 
-    w = revointernal::readBE16(q); q += 2; p = 16;
-    d->eyebrowType = bits(w, p, 5);
-    d->eyebrowRotate = bits(w, p, 5);
-    d->padding4 = bits(w, p, 6);
+    d->eyebrowType = reader2.get(5);
+    d->eyebrowRotate = reader2.get(5);
+    d->padding4 = reader2.get(6);
 
-    w = revointernal::readBE16(q); q += 2; p = 16;
-    d->eyebrowColor = bits(w, p, 3);
-    d->eyebrowScale = bits(w, p, 4);
-    d->eyebrowY = bits(w, p, 5);
-    d->eyebrowX = bits(w, p, 4);
+    d->eyebrowColor = reader2.get(3);
+    d->eyebrowScale = reader2.get(4);
+    d->eyebrowY = reader2.get(5);
+    d->eyebrowX = reader2.get(4);
 
-    w = revointernal::readBE16(q); q += 2; p = 16;
-    d->eyeType = bits(w, p, 6);
-    d->eyeRotate = bits(w, p, 5);
-    d->eyeY = bits(w, p, 5);
+    d->eyeType = reader2.get(6);
+    d->eyeRotate = reader2.get(5);
+    d->eyeY = reader2.get(5);
 
-    w = revointernal::readBE16(q); q += 2; p = 16;
-    d->eyeColor = bits(w, p, 3);
-    d->eyeScale = bits(w, p, 4);
-    d->eyeX = bits(w, p, 4);
-    d->padding5 = bits(w, p, 5);
+    d->eyeColor = reader2.get(3);
+    d->eyeScale = reader2.get(4);
+    d->eyeX = reader2.get(4);
+    d->padding5 = reader2.get(5);
 
-    w = revointernal::readBE16(q); q += 2; p = 16;
-    d->noseType = bits(w, p, 4);
-    d->noseScale = bits(w, p, 4);
-    d->noseY = bits(w, p, 5);
-    d->padding6 = bits(w, p, 3);
+    d->noseType = reader2.get(4);
+    d->noseScale = reader2.get(4);
+    d->noseY = reader2.get(5);
+    d->padding6 = reader2.get(3);
 
-    w = revointernal::readBE16(q); q += 2; p = 16;
-    d->mouthType = bits(w, p, 5);
-    d->mouthColor = bits(w, p, 2);
-    d->mouthScale = bits(w, p, 4);
-    d->mouthY = bits(w, p, 5);
+    d->mouthType = reader2.get(5);
+    d->mouthColor = reader2.get(2);
+    d->mouthScale = reader2.get(4);
+    d->mouthY = reader2.get(5);
 
-    w = revointernal::readBE16(q); q += 2; p = 16;
-    d->glassType = bits(w, p, 4);
-    d->glassColor = bits(w, p, 3);
-    d->glassScale = bits(w, p, 4);
-    d->glassY = bits(w, p, 5);
+    d->glassType = reader2.get(4);
+    d->glassColor = reader2.get(3);
+    d->glassScale = reader2.get(4);
+    d->glassY = reader2.get(5);
 
-    w = revointernal::readBE16(q); q += 2; p = 16;
-    d->mustacheType = bits(w, p, 2);
-    d->beardType = bits(w, p, 2);
-    d->beardColor = bits(w, p, 3);
-    d->beardScale = bits(w, p, 4);
-    d->beardY = bits(w, p, 5);
+    d->mustacheType = reader2.get(2);
+    d->beardType = reader2.get(2);
+    d->beardColor = reader2.get(3);
+    d->beardScale = reader2.get(4);
+    d->beardY = reader2.get(5);
 
-    w = revointernal::readBE16(q); q += 2; p = 16;
-    d->moleType = bits(w, p, 1);
-    d->moleScale = bits(w, p, 4);
-    d->moleY = bits(w, p, 5);
-    d->moleX = bits(w, p, 5);
-    d->padding8 = bits(w, p, 1);
+    d->moleType = reader2.get(1);
+    d->moleScale = reader2.get(4);
+    d->moleY = reader2.get(5);
+    d->moleX = reader2.get(5);
+    d->padding8 = reader2.get(1);
 
-    for (int i = 0; i < RFL_CREATOR_LEN; i++) d->creatorName[i] = revointernal::readBE16(q + i * 2);
+    for (int i = 0; i < RFL_CREATOR_LEN; i++) {
+        d->creatorName[i] = revointernal::readBE16(r + 54 + i * 2);
+    }
 }
-
-}
-
-extern "C" {
 
 void RFLiGetDefaultData(RFLiCharInfo* info, u16 index) {
     index = index % 6;

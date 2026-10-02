@@ -1,7 +1,7 @@
 #include "RFL_DataUtility.h"
 #include "RFL_Model.h"
 #include "RFL_System.h"
-#include "RFLi_Types.hpp"
+#include "RVLFaceLib/RFLi_Types.hpp"
 
 extern "C" {
 
