@@ -1,11 +1,9 @@
 #include "RVLFaceLib/RFLi_Types.h"
-#include "RevoInternal/log.hpp"
 #include <cstring>
 
 extern "C" {
 
 void RFLiConvertRaw2Info(const RFLiCharData* data, RFLiCharInfo* info) {
-    LOG_TRACE("[RFLi] Converting raw Mii data to CharInfo");
     info->faceline.type = data->faceType;
     info->faceline.color = data->faceColor;
     info->faceline.texture = data->faceTex;

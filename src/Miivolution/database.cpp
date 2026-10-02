@@ -1,7 +1,6 @@
 #include "Miivolution/database.hpp"
 #include "RVLFaceLib/RFLi_Database.h"
 #include "RevoInternal/util.hpp"
-#include "RevoInternal/log.hpp"
 #include <cstring>
 
 extern "C" {
@@ -164,26 +163,12 @@ s32 findEmptySlot() {
 }
 
 bool addMii(const mii::MII_DATA_STRUCT& data, u16* outIndex) {
-    LOG_DEBUG("[Miivolution] addMii called");
     s32 slot = findEmptySlot();
     if (slot < 0) {
-        LOG_DEBUG("[Miivolution] No empty slot found");
         return false;
     }
 
-    LOG_DEBUG("[Miivolution] Found empty slot at index %d", slot);
-
-    // Log Mii name
-    char nameStr[RFL_NAME_LEN * 2 + 1] = {0};
-    for (int i = 0; i < RFL_NAME_LEN && data.name[i] != 0; i++) {
-        if (data.name[i] < 128) {
-            nameStr[i] = static_cast<char>(data.name[i]);
-        }
-    }
-    LOG_DEBUG("[Miivolution] Adding Mii with name: %s", nameStr);
-
     if (!setMii(static_cast<u16>(slot), data)) {
-        LOG_DEBUG("[Miivolution] Failed to set Mii at slot %d", slot);
         return false;
     }
 
@@ -191,8 +176,6 @@ bool addMii(const mii::MII_DATA_STRUCT& data, u16* outIndex) {
         *outIndex = static_cast<u16>(slot);
     }
 
-    LOG_DEBUG("[Miivolution] Mii added successfully at slot %d", slot);
-    // setMii already marks dirty, so we don't save here
     return true;
 }
 
