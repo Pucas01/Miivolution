@@ -63,6 +63,10 @@ void RFLiFree(void* block) {
     #endif
 }
 
+BOOL RFLiGetUseDeluxTex() {
+    return systemState.deluxeTex;
+}
+
 u32 RFLGetWorkSize(BOOL deluxeTex) {
     return deluxeTex ? RFL_DELUXE_WORK_SIZE : RFL_WORK_SIZE;
 }
@@ -79,7 +83,7 @@ RFLErrcode RFLInitResAsync(void* workBuffer, void* resBuffer, u32 resSize, BOOL 
         return RFLErrcode_Success;
     }
 
-    u32 requiredWorkSize = deluxeTex ? RFL_DELUXE_WORK_SIZE : RFL_WORK_SIZE;
+    u32 requiredWorkSize = RFLGetWorkSize(deluxeTex);
     std::memset(workBuffer, 0, requiredWorkSize);
 
     state.workBuffer = workBuffer;

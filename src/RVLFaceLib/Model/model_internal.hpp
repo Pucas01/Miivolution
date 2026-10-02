@@ -1,13 +1,16 @@
 #pragma once
 
 #include "RFL_Types.h"
+#include "RFLi_Types.hpp"
 
 #if DOLPHIN_INCLUDES
 #include <dolphin/mtx.h>
 #include <dolphin/types.h>
+#include <dolphin/gx.h>
 #else
 #include <revolution/mtx.h>
 #include <revolution/types.h>
+#include <revolution/gx.h>
 #endif
 
 #define VTX_COORDS_IN_POS 3
@@ -158,6 +161,91 @@ struct CharInfo {
     u8 color;
     u8 personalColor;
 };
+
+struct CoordData {
+    u8 uOff;
+    u8 fOff;
+    u8 rOff;
+    BOOL uRev;
+    BOOL fRev;
+    BOOL rRev;
+};
+
+struct CharModelRes {
+    u8 noseDl[0xC0];
+    u8 capDl[0x560];
+    u8 faceDl[0x2E0];
+    u8 beardDl[0x160];
+    u8 noselineDl[0x60];
+    u8 maskDl[0x380];
+    u8 glassesDl[0x40];
+
+    u8 faceTex[0x4000];
+    u8 capTex[0x400];
+    u8 noseTex[0x400];
+    u8 glassesTex[0x1000];
+
+    s16 noseVtxPos[23 * 3];
+    s16 noseVtxNrm[23 * 3];
+    s16 capVtxPos[173 * 3];
+    s16 capVtxNrm[246 * 3];
+    s16 capVtxTxc[95 * 2];
+    s16 faceVtxPos[66 * 3];
+    s16 faceVtxNrm[66 * 3];
+    s16 faceVtxTxc[115 * 2];
+    s16 beardVtxPos[40 * 3];
+    s16 beardVtxNrm[68 * 3];
+    s16 noselineVtxPos[6 * 3];
+    s16 noselineVtxNrm[2 * 3];
+    s16 noselineVtxTxc[7 * 2];
+    s16 maskVtxPos[88 * 3];
+    s16 maskVtxNrm[86 * 3];
+    s16 maskVtxTxc[176 * 2];
+    s16 glassesVtxPos[4 * 3];
+    s16 glassesVtxNrm[1 * 3];
+    s16 glassesVtxTxc[4 * 2];
+
+    GXTexObj faceTexObj;
+    GXTexObj capTexObj;
+    GXTexObj noseTexObj;
+    GXTexObj glassesTexObj;
+
+    s16* hairVtxPos;
+    s16* hairVtxNrm;
+    u8* hairDl;
+    s16* foreheadVtxPos;
+    s16* foreheadVtxNrm;
+    u8* foreheadDl;
+
+    u16 noseDlSize;
+    u16 faceDlSize;
+    u16 hairDlSize;
+    u16 capDlSize;
+    u16 foreheadDlSize;
+    u16 beardDlSize;
+    u16 noselineDlSize;
+    u16 maskDlSize;
+    u16 glassesDlSize;
+
+    u8 facelineColor;
+    u8 hairColor;
+    u8 beardColor;
+    u8 glassesColor;
+    u8 favoriteColor;
+
+    bool flipHair;
+};
+
+struct CharModelInternal {
+    Mtx posMtx;
+    Mtx nrmMtx;
+    RFLExpression currentExpression = RFLExp_Normal;
+    RFLResolution resolution = RFLResolution_128;
+    CharModelRes* res = nullptr;
+    GXTexObj* maskTexObj[RFLExp_Max] = {nullptr};
+};
+
+void composeMask(u8* dst, int res, const RFLiCharInfo& ci, bool blink);
 
 }
 

@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 // Forward declarations
-typedef struct NWC24MsgObj;
+struct NWC24MsgObj;
 
 RFLErrcode RFLCommitNWC24Msg(struct NWC24MsgObj* msg, u16 index);
 

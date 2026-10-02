@@ -5,3 +5,7 @@
 
 #define RVL_NOT_IMPL(fn_name) \
     ::revointernal::log(::revointernal::LogLevel::Warning, "[RVLFaceLib] Not implemented: %s", fn_name)
+
+namespace revointernal::rfl {
+
+}

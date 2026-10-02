@@ -9,6 +9,8 @@
 #include <vector>
 #include "RevoInternal/endian.hpp"
 
+using namespace rvlfacelib;
+
 extern "C" {
     void* RFLiAlloc32(u32 size);
     void RFLiFree(void* block);
@@ -130,80 +132,6 @@ constexpr RFLDrawCoreSetting defaultDrawCoreSetting2Tev = {
 
 constexpr RFLDrawCoreSetting defaultDrawCoreSetting1Tev = {
     1, GX_TEXCOORD0, GX_TEXMAP0, 1, GX_TEV_SWAP0, GX_KCOLOR0, GX_TEVPREV, GX_PNMTX0, FALSE
-};
-
-struct CharModelRes {
-    u8 noseDl[0xC0];
-    u8 capDl[0x560];
-    u8 faceDl[0x2E0];
-    u8 beardDl[0x160];
-    u8 noselineDl[0x60];
-    u8 maskDl[0x380];
-    u8 glassesDl[0x40];
-
-    u8 faceTex[0x4000];
-    u8 capTex[0x400];
-    u8 noseTex[0x400];
-    u8 glassesTex[0x1000];
-
-    s16 noseVtxPos[23 * 3];
-    s16 noseVtxNrm[23 * 3];
-    s16 capVtxPos[173 * 3];
-    s16 capVtxNrm[246 * 3];
-    s16 capVtxTxc[95 * 2];
-    s16 faceVtxPos[66 * 3];
-    s16 faceVtxNrm[66 * 3];
-    s16 faceVtxTxc[115 * 2];
-    s16 beardVtxPos[40 * 3];
-    s16 beardVtxNrm[68 * 3];
-    s16 noselineVtxPos[6 * 3];
-    s16 noselineVtxNrm[2 * 3];
-    s16 noselineVtxTxc[7 * 2];
-    s16 maskVtxPos[88 * 3];
-    s16 maskVtxNrm[86 * 3];
-    s16 maskVtxTxc[176 * 2];
-    s16 glassesVtxPos[4 * 3];
-    s16 glassesVtxNrm[1 * 3];
-    s16 glassesVtxTxc[4 * 2];
-
-    GXTexObj faceTexObj;
-    GXTexObj capTexObj;
-    GXTexObj noseTexObj;
-    GXTexObj glassesTexObj;
-
-    s16* hairVtxPos;
-    s16* hairVtxNrm;
-    u8* hairDl;
-    s16* foreheadVtxPos;
-    s16* foreheadVtxNrm;
-    u8* foreheadDl;
-
-    u16 noseDlSize;
-    u16 faceDlSize;
-    u16 hairDlSize;
-    u16 capDlSize;
-    u16 foreheadDlSize;
-    u16 beardDlSize;
-    u16 noselineDlSize;
-    u16 maskDlSize;
-    u16 glassesDlSize;
-
-    u8 facelineColor;
-    u8 hairColor;
-    u8 beardColor;
-    u8 glassesColor;
-    u8 favoriteColor;
-
-    bool flipHair;
-};
-
-struct CharModelInternal {
-    Mtx posMtx;
-    Mtx nrmMtx;
-    RFLExpression currentExpression = RFLExp_Normal;
-    RFLResolution resolution = RFLResolution_128;
-    CharModelRes* res = nullptr;
-    GXTexObj* maskTexObj[RFLExp_Max] = {nullptr};
 };
 
 CoordinateData coordinateData = {
@@ -354,9 +282,9 @@ struct PartTex {
     std::vector<Rgba> px;
 };
 
-bool decodePartTex(rvlfacelib::ArcID arc, u16 file, PartTex& out) {
+bool decodePartTex(ArcID arc, u16 file, PartTex& out) {
     u32 size = 0;
-    const u8* f = rvlfacelib::getResourceLoader().getFile(arc, file, &size);
+    const u8* f = getResourceLoader().getFile(arc, file, &size);
     if (!f || size < 32) {
         return false;
     }
@@ -495,105 +423,7 @@ float scale2dim(int scale) {
     return 1.0f + 0.4f * scale;
 }
 
-void composeMask(u8* dst, int res, const RFLiCharInfo& ci, bool blink) {
-    using rvlfacelib::ArcID;
-    MaskCanvas cv{res, std::vector<Rgba>(res * res, Rgba{0, 0, 0, 0})};
-    const float unit = res / 64.0f;
-    const float white[3] = {1, 1, 1};
-
-    int eyeType = blink ? 48 : ci.eye.type;
-    int eyeRotate = ci.eye.rotate;
-    if (blink) {
-        int change = (int)kEyeRotOffset[ci.eye.type < 50 ? ci.eye.type : 0] - (int)kEyeRotOffset[48];
-        eyeRotate = std::min(7, std::max(0, eyeRotate + change));
-    }
-    int eyeY = ci.eye.y;
-    int browY = ci.eyebrow.y;
-
-    PartTex t;
-
-    float eyeX = kScaleX * ci.eye.x;
-    float eyeYp = 18.451525f + 1.1600001f * kScaleY * eyeY;
-    float eyeW = (342.0f / 64.0f) * scale2dim(ci.eye.scale) * unit;
-    float eyeH = (288.0f / 64.0f) * scale2dim(ci.eye.scale) * unit;
-    float eyeA = rot2ang(eyeRotate + kEyeRotOffset[eyeType < 50 ? eyeType : 0]);
-
-    float browX = kScaleX * ci.eyebrow.x;
-    float browYp = 16.549807f + 1.1600001f * kScaleY * browY;
-    float browW = (324.0f / 64.0f) * scale2dim(ci.eyebrow.scale) * unit;
-    float browH = (288.0f / 64.0f) * scale2dim(ci.eyebrow.scale) * unit;
-    float browA = rot2ang(ci.eyebrow.rotate + kEyebrowRotOffset[ci.eyebrow.type < 24 ? ci.eyebrow.type : 0]);
-
-    float mouthYp = 29.25885f + 1.1600001f * kScaleY * ci.mouth.y;
-    float mouthW = (396.0f / 64.0f) * scale2dim(ci.mouth.scale) * unit;
-    float mouthH = (288.0f / 64.0f) * scale2dim(ci.mouth.scale) * unit;
-
-    float mustYp = 31.763554f + 1.1600001f * kScaleY * ci.beard.y;
-    float mustW = (288.0f / 64.0f) * scale2dim(ci.beard.scale) * unit;
-    float mustH = (576.0f / 64.0f) * scale2dim(ci.beard.scale) * unit;
-
-    float moleX = 17.766165f + 2.0f * kScaleX * ci.mole.x;
-    float moleY = 17.95986f + 1.1600001f * kScaleY * ci.mole.y;
-    float moleSz = scale2dim(ci.mole.scale) * unit;
-
-    if (ci.beard.mustache > 0 && decodePartTex(ArcID::TexMustache, ci.beard.mustache, t)) {
-        float col[3];
-        toF(getBeardColor(ci.beard.color), col);
-        drawPart(cv, t, 32 * unit, mustYp * unit, mustW, mustH, 0, OriginRight, TintMode::Intensity, col, col, col);
-        drawPart(cv, t, 32 * unit, mustYp * unit, mustW, mustH, 0, OriginLeft, TintMode::Intensity, col, col, col);
-    }
-
-    if (decodePartTex(ArcID::TexMouth, ci.mouth.type, t)) {
-        float c0[3], c1[3];
-        toF(kMouthColor0[ci.mouth.color < 3 ? ci.mouth.color : 0], c0);
-        toF(kMouthColor1[ci.mouth.color < 3 ? ci.mouth.color : 0], c1);
-        drawPart(cv, t, 32 * unit, mouthYp * unit, mouthW, mouthH, 0, OriginCenter, TintMode::Channels, c0, c1, white);
-    }
-
-    if (decodePartTex(ArcID::TexEyebrow, ci.eyebrow.type, t)) {
-        float col[3];
-        toF(getHairColor(ci.eyebrow.color), col);
-        drawPart(cv, t, unit * (32.0f - browX), browYp * unit, browW, browH, browA, OriginRight, TintMode::Intensity, col, col, col);
-        drawPart(cv, t, unit * (32.0f + browX), browYp * unit, browW, browH, 360.0f - browA, OriginLeft, TintMode::Intensity, col, col, col);
-    }
-
-    if (decodePartTex(ArcID::TexEye, eyeType, t)) {
-        float c0[3], c1[3];
-        GXColor g0 = eyeType == 9 ? GXColor{255, 130, 0, 255} : (eyeType == 20 ? GXColor{0, 255, 255, 255} : GXColor{0, 0, 0, 255});
-        toF(g0, c0);
-        toF(kEyeColor1[ci.eye.color < 6 ? ci.eye.color : 0], c1);
-        drawPart(cv, t, unit * (32.0f - eyeX), eyeYp * unit, eyeW, eyeH, eyeA, OriginRight, TintMode::Channels, c0, c1, white);
-        drawPart(cv, t, unit * (32.0f + eyeX), eyeYp * unit, eyeW, eyeH, 360.0f - eyeA, OriginLeft, TintMode::Channels, c0, c1, white);
-    }
-
-    if (ci.mole.type && decodePartTex(ArcID::TexMole, 0, t)) {
-        float col[3];
-        toF(kMoleColor, col);
-        drawPart(cv, t, moleX * unit, moleY * unit, moleSz, moleSz, 0, OriginCenter, TintMode::Intensity, col, col, col);
-    }
-
-    for (int by = 0; by < res; by += 4) {
-        for (int bx = 0; bx < res; bx += 4) {
-            for (int y = 0; y < 4; y++) {
-                for (int x = 0; x < 4; x++) {
-                    const Rgba& c = cv.px[(by + y) * res + bx + x];
-                    u16 v;
-                    auto q = [](float f, int n) { return (u16)std::lround(std::min(1.0f, std::max(0.0f, f)) * n); };
-                    if (c.a >= 0.97f) {
-                        v = 0x8000 | (q(c.r, 31) << 10) | (q(c.g, 31) << 5) | q(c.b, 31);
-                    } else {
-                        v = (q(c.a, 7) << 12) | (q(c.r, 15) << 8) | (q(c.g, 15) << 4) | q(c.b, 15);
-                    }
-                    dst[0] = v >> 8;
-                    dst[1] = v & 0xFF;
-                    dst += 2;
-                }
-            }
-        }
-    }
-}
-
-void convertCharInfo(const RFLiCharInfo& in, rvlfacelib::CharInfo* out) {
+void convertCharInfo(const RFLiCharInfo& in, CharInfo* out) {
     std::memset(out, 0, sizeof(*out));
     out->facelineType = in.faceline.type;
     out->facelineColor = in.faceline.color;
@@ -694,7 +524,7 @@ RFLErrcode RFLInitCharModel(RFLCharModel* model, RFLDataSource src,
     workPtr += roundUp(sizeof(CharModelRes), 32);
 
     const RFLiCharInfo& info = *reinterpret_cast<RFLiCharInfo*>(charInfoBuf);
-    rvlfacelib::CharInfo ci;
+    CharInfo ci;
     convertCharInfo(info, &ci);
     RFLiInitCharModelRes(internal->res, &ci);
     if (info.glass.type == 0) {
@@ -820,7 +650,13 @@ void RFLLoadMaterialSetting(const RFLDrawCoreSetting* setting) {
     GXSetTevDirect(GX_TEVSTAGE0);
     GXSetTevAlphaOp(GX_TEVSTAGE0, GX_TEV_ADD, GX_TB_ZERO, GX_CS_SCALE_1, 1, setting->tevOutRegID);
     GXSetTevColorOp(GX_TEVSTAGE0, GX_TEV_ADD, GX_TB_ZERO, GX_CS_SCALE_1, 1, setting->tevOutRegID);
-    GXSetTevKColorSel(GX_TEVSTAGE0, static_cast<GXTevKColorSel>(setting->tevKColorID + GX_TEV_KCSEL_K0));
+    const auto sel =
+        static_cast<GXTevKColorSel>(
+            static_cast<int>(setting->tevKColorID) +
+            static_cast<int>(GX_TEV_KCSEL_K0)
+        );
+
+    GXSetTevKColorSel(GX_TEVSTAGE0, sel);
     GXSetTevKAlphaSel(GX_TEVSTAGE0, GX_TEV_KASEL_1);
 }
 
@@ -953,7 +789,7 @@ void RFLDrawShape(const RFLCharModel* model) {
     GXSetCurrentMtx(GX_PNMTX0);
 }
 
-void RFLiInitShapeRes(rvlfacelib::ShapeRes* shape) {
+void RFLiInitShapeRes(ShapeRes* shape) {
     using namespace rvlfacelib;
 
     bool skipTxc = shape->part == PartsShp::Forehead ||
@@ -1181,7 +1017,7 @@ void RFLiInitTexRes(GXTexObj* texObj, u32 part, u16 file, void* buffer) {
     RFLiFree(tex);
 }
 
-void RFLiInitCharModelRes(void* resPtr, const rvlfacelib::CharInfo* info) {
+void RFLiInitCharModelRes(void* resPtr, const CharInfo* info) {
     using namespace rvlfacelib;
 
     auto* res = static_cast<CharModelRes*>(resPtr);
@@ -1455,4 +1291,101 @@ void RFLiInitCharModelRes(void* resPtr, const rvlfacelib::CharInfo* info) {
     res->favoriteColor = info->personalColor;
 }
 
+}
+
+void rvlfacelib::composeMask(u8* dst, int res, const RFLiCharInfo& ci, bool blink) {
+    MaskCanvas cv{res, std::vector<Rgba>(res * res, Rgba{0, 0, 0, 0})};
+    const float unit = res / 64.0f;
+    const float white[3] = {1, 1, 1};
+
+    int eyeType = blink ? 48 : ci.eye.type;
+    int eyeRotate = ci.eye.rotate;
+    if (blink) {
+        int change = (int)kEyeRotOffset[ci.eye.type < 50 ? ci.eye.type : 0] - (int)kEyeRotOffset[48];
+        eyeRotate = std::min(7, std::max(0, eyeRotate + change));
+    }
+    int eyeY = ci.eye.y;
+    int browY = ci.eyebrow.y;
+
+    PartTex t;
+
+    float eyeX = kScaleX * ci.eye.x;
+    float eyeYp = 18.451525f + 1.1600001f * kScaleY * eyeY;
+    float eyeW = (342.0f / 64.0f) * scale2dim(ci.eye.scale) * unit;
+    float eyeH = (288.0f / 64.0f) * scale2dim(ci.eye.scale) * unit;
+    float eyeA = rot2ang(eyeRotate + kEyeRotOffset[eyeType < 50 ? eyeType : 0]);
+
+    float browX = kScaleX * ci.eyebrow.x;
+    float browYp = 16.549807f + 1.1600001f * kScaleY * browY;
+    float browW = (324.0f / 64.0f) * scale2dim(ci.eyebrow.scale) * unit;
+    float browH = (288.0f / 64.0f) * scale2dim(ci.eyebrow.scale) * unit;
+    float browA = rot2ang(ci.eyebrow.rotate + kEyebrowRotOffset[ci.eyebrow.type < 24 ? ci.eyebrow.type : 0]);
+
+    float mouthYp = 29.25885f + 1.1600001f * kScaleY * ci.mouth.y;
+    float mouthW = (396.0f / 64.0f) * scale2dim(ci.mouth.scale) * unit;
+    float mouthH = (288.0f / 64.0f) * scale2dim(ci.mouth.scale) * unit;
+
+    float mustYp = 31.763554f + 1.1600001f * kScaleY * ci.beard.y;
+    float mustW = (288.0f / 64.0f) * scale2dim(ci.beard.scale) * unit;
+    float mustH = (576.0f / 64.0f) * scale2dim(ci.beard.scale) * unit;
+
+    float moleX = 17.766165f + 2.0f * kScaleX * ci.mole.x;
+    float moleY = 17.95986f + 1.1600001f * kScaleY * ci.mole.y;
+    float moleSz = scale2dim(ci.mole.scale) * unit;
+
+    if (ci.beard.mustache > 0 && decodePartTex(ArcID::TexMustache, ci.beard.mustache, t)) {
+        float col[3];
+        toF(getBeardColor(ci.beard.color), col);
+        drawPart(cv, t, 32 * unit, mustYp * unit, mustW, mustH, 0, OriginRight, TintMode::Intensity, col, col, col);
+        drawPart(cv, t, 32 * unit, mustYp * unit, mustW, mustH, 0, OriginLeft, TintMode::Intensity, col, col, col);
+    }
+
+    if (decodePartTex(ArcID::TexMouth, ci.mouth.type, t)) {
+        float c0[3], c1[3];
+        toF(kMouthColor0[ci.mouth.color < 3 ? ci.mouth.color : 0], c0);
+        toF(kMouthColor1[ci.mouth.color < 3 ? ci.mouth.color : 0], c1);
+        drawPart(cv, t, 32 * unit, mouthYp * unit, mouthW, mouthH, 0, OriginCenter, TintMode::Channels, c0, c1, white);
+    }
+
+    if (decodePartTex(ArcID::TexEyebrow, ci.eyebrow.type, t)) {
+        float col[3];
+        toF(getHairColor(ci.eyebrow.color), col);
+        drawPart(cv, t, unit * (32.0f - browX), browYp * unit, browW, browH, browA, OriginRight, TintMode::Intensity, col, col, col);
+        drawPart(cv, t, unit * (32.0f + browX), browYp * unit, browW, browH, 360.0f - browA, OriginLeft, TintMode::Intensity, col, col, col);
+    }
+
+    if (decodePartTex(ArcID::TexEye, eyeType, t)) {
+        float c0[3], c1[3];
+        GXColor g0 = eyeType == 9 ? GXColor{255, 130, 0, 255} : (eyeType == 20 ? GXColor{0, 255, 255, 255} : GXColor{0, 0, 0, 255});
+        toF(g0, c0);
+        toF(kEyeColor1[ci.eye.color < 6 ? ci.eye.color : 0], c1);
+        drawPart(cv, t, unit * (32.0f - eyeX), eyeYp * unit, eyeW, eyeH, eyeA, OriginRight, TintMode::Channels, c0, c1, white);
+        drawPart(cv, t, unit * (32.0f + eyeX), eyeYp * unit, eyeW, eyeH, 360.0f - eyeA, OriginLeft, TintMode::Channels, c0, c1, white);
+    }
+
+    if (ci.mole.type && decodePartTex(ArcID::TexMole, 0, t)) {
+        float col[3];
+        toF(kMoleColor, col);
+        drawPart(cv, t, moleX * unit, moleY * unit, moleSz, moleSz, 0, OriginCenter, TintMode::Intensity, col, col, col);
+    }
+
+    for (int by = 0; by < res; by += 4) {
+        for (int bx = 0; bx < res; bx += 4) {
+            for (int y = 0; y < 4; y++) {
+                for (int x = 0; x < 4; x++) {
+                    const Rgba& c = cv.px[(by + y) * res + bx + x];
+                    u16 v;
+                    auto q = [](float f, int n) { return (u16)std::lround(std::min(1.0f, std::max(0.0f, f)) * n); };
+                    if (c.a >= 0.97f) {
+                        v = 0x8000 | (q(c.r, 31) << 10) | (q(c.g, 31) << 5) | q(c.b, 31);
+                    } else {
+                        v = (q(c.a, 7) << 12) | (q(c.r, 15) << 8) | (q(c.g, 15) << 4) | q(c.b, 15);
+                    }
+                    dst[0] = v >> 8;
+                    dst[1] = v & 0xFF;
+                    dst += 2;
+                }
+            }
+        }
+    }
 }

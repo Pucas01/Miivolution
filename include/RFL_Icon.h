@@ -7,8 +7,10 @@
 
 #if DOLPHIN_INCLUDES
 #include <dolphin/types.h>
+#include <dolphin/gx.h>
 #else
 #include <revolution/types.h>
+#include <revolution/gx.h>
 #endif
 
 #ifdef __cplusplus

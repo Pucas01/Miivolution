@@ -22,7 +22,7 @@ extern "C" {
 #endif
 
 // Forward declarations
-typedef struct RFLMiddleDB;
+struct RFLMiddleDB;
 
 typedef struct RFLAdditionalInfo {
     wchar_t name[RFL_NAME_LEN + 1];       // at 0x0

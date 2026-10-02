@@ -36,4 +36,5 @@ list(APPEND RVLFACE_SOURCES
 
 list(APPEND RVLFACE_SOURCES
     ${LIB_ROOT}/Utilities/nwc24.cpp
+    ${LIB_ROOT}/Utilities/icon.cpp
 )

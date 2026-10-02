@@ -47,19 +47,4 @@ RFLErrcode RFLGetAdditionalInfo(RFLAdditionalInfo* info, RFLDataSource source,
     return RFLErrcode_Success;
 }
 
-// =============================================================================
-// RFL_Icon.h
-// =============================================================================
-
-RFLErrcode RFLMakeIcon(void* buf, RFLDataSource source, RFLMiddleDB* middleDB,
-                       u16 index, RFLExpression expression,
-                       const RFLIconSetting* setting) {
-    RVL_NOT_IMPL("RFLMakeIcon");
-    return RFLErrcode_NotAvailable;
-}
-
-void RFLSetIconDrawDoneCallback(RFLCallback callback) {
-    RVL_NOT_IMPL("RFLSetIconDrawDoneCallback");
-}
-
 } // extern "C"

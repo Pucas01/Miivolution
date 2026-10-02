@@ -18,7 +18,7 @@ extern "C" {
 #endif
 
 // Forward declarations
-typedef struct RFLMiddleDB;
+struct RFLMiddleDB;
 
 typedef enum {
     RFLCoordinateType_X = 0x01000000,
