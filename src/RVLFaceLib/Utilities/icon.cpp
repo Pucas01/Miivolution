@@ -141,10 +141,16 @@ void RFLiSetupCopyTex(GXTexFmt fmt, u16 width, u16 height, void* buf, GXColor cl
     GXSetZMode(GX_TRUE, GX_LEQUAL, GX_TRUE);
     GXSetPixelFmt(GX_PF_RGBA6_Z24, GX_ZC_LINEAR);
     GXSetCopyFilter(GX_FALSE, nullptr, GX_FALSE, nullptr);
+#ifdef AURORA
+    GXSetCopyClamp(static_cast<GXFBClamp>(GX_CLAMP_TOP | GX_CLAMP_BOTTOM));
+#else
     GXSetCopyClamp(static_cast<GXClamp>(GX_CLAMP_TOP | GX_CLAMP_BOTTOM));
+#endif
     GXSetCopyClear(clearColor, GX_MAX_Z24);
     GXSetTexCopySrc(0, 0, width, height);
     GXSetTexCopyDst(width, height, fmt, GX_FALSE);
+    GXCopyTex(buf, GX_TRUE);
+    GXPixModeSync();
 }
 
 void RFLiMakeIcon(void* buf, RFLiCharInfo* info, RFLExpression expression, const RFLIconSetting* setting) {
