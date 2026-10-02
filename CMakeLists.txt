@@ -148,15 +148,24 @@ target_link_libraries(RVLFaceLib
         RevoInternal
 )
 
-if(MIIVOLUTION_AURORA_TARGETS)
-    target_link_libraries(RVLFaceLib PUBLIC ${MIIVOLUTION_AURORA_TARGETS})
-    if(aurora_SOURCE_DIR)
-        target_include_directories(RVLFaceLib PUBLIC ${aurora_SOURCE_DIR}/include)
+foreach(_t RevoInternal RVLFaceLib Miivolution)
+    if(MIIVOLUTION_AURORA_TARGETS)
+        target_link_libraries(${_t} PUBLIC ${MIIVOLUTION_AURORA_TARGETS})
+        if(aurora_SOURCE_DIR)
+            target_include_directories(${_t} PUBLIC ${aurora_SOURCE_DIR}/include)
+        endif()
+        target_compile_definitions(${_t} PUBLIC
+            DOLPHIN_INCLUDES=1
+            TARGET_PC=1
+            MIIVOLUTION_AURORA=1
+        )
+    elseif(MIIVOLUTION_DOLPHIN)
+        target_compile_definitions(${_t} PUBLIC
+            DOLPHIN_INCLUDES=1
+            TARGET_PC=1
+        )
     endif()
-    target_compile_definitions(RVLFaceLib PUBLIC DOLPHIN_INCLUDES=1 TARGET_PC=1 MIIVOLUTION_AURORA=1)
-elseif(MIIVOLUTION_DOLPHIN)
-    target_compile_definitions(RVLFaceLib PRIVATE DOLPHIN_INCLUDES=1 TARGET_PC=1)
-endif()
+endforeach()
 
 # =============================================================================
 # MIIVOLUTION
