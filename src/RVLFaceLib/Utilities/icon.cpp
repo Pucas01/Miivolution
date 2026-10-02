@@ -4,7 +4,7 @@
 
 #include "RFL_Icon.h"
 #include "RFL_Model.h"
-#include "RVLFaceLib/RFLi_Types.hpp"
+#include "RVLFaceLib/RFLi_Types.h"
 #include "RVLFaceLib/Model/model_internal.hpp"
 
 #if DOLPHIN_INCLUDES

@@ -83,4 +83,40 @@ inline uint16_t readBE16(const uint8_t* ptr) {
     return readBE<uint16_t>(ptr);
 }
 
+inline uint32_t readBE32(const uint8_t* ptr) {
+    return readBE<uint32_t>(ptr);
+}
+
+template<typename T>
+inline void writeBE(uint8_t* ptr, T value);
+
+template<>
+inline void writeBE<uint16_t>(uint8_t* ptr, uint16_t value) {
+#ifdef REVO_LITTLE_ENDIAN
+    value = bswap16(value);
+#endif
+    std::memcpy(ptr, &value, sizeof(uint16_t));
+}
+
+template<>
+inline void writeBE<uint32_t>(uint8_t* ptr, uint32_t value) {
+#ifdef REVO_LITTLE_ENDIAN
+    value = bswap32(value);
+#endif
+    std::memcpy(ptr, &value, sizeof(uint32_t));
+}
+
+template<>
+inline void writeBE<uint8_t>(uint8_t* ptr, uint8_t value) {
+    *ptr = value;
+}
+
+inline void writeBE16(uint8_t* ptr, uint16_t value) {
+    writeBE<uint16_t>(ptr, value);
+}
+
+inline void writeBE32(uint8_t* ptr, uint32_t value) {
+    writeBE<uint32_t>(ptr, value);
+}
+
 }

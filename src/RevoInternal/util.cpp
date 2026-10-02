@@ -1,7 +1,7 @@
 #include <string>
-
-#include "util.hpp"
 #include "Miivolution/database.hpp"
+#include "util.hpp"
+
 
 namespace {
 miivolution::database::PrefPathConfig g_cfg;
@@ -31,7 +31,7 @@ std::filesystem::path getPrefDir() {
     if (!g_cfg.get) {
         throw std::runtime_error(
             "miivolution: no pref path function set. Call "
-            "miivolution::util::setPrefPath() before using the library. "
+            "miivolution::database::setPrefPath() before using the library. "
             "See Miivolution/database.hpp");
     }
 

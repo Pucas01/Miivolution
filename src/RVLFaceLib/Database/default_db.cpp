@@ -1,4 +1,4 @@
-#include "RVLFaceLib/RFLi_Types.hpp"
+#include "RVLFaceLib/RFLi_Types.h"
 #include "RevoInternal/bitstream.hpp"
 #include "RevoInternal/endian.hpp"
 #include <cstring>

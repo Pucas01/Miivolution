@@ -1,5 +1,5 @@
 #include "Miivolution/mii.hpp"
-#include "RVLFaceLib/RFLi_Types.hpp"
+#include "RVLFaceLib/RFLi_Types.h"
 #include "RevoInternal/bitstream.hpp"
 
 #define MII_RAW_SIZE 0x4A
